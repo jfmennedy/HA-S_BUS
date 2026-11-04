@@ -7,6 +7,14 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ## [Unreleased]
 
+### Geplant
+- YAML-Konfiguration für Entitäten
+- Automatische Erkennung aller verfügbaren Datenpunkte
+- Unterstützung für Timer und Counter Entitäten
+- Diagnostics Support
+
+## [0.3.1] - 2026-11-04
+
 ### Behoben
 - Ether-S-Bus: Telegramme enthalten jetzt den vorgeschriebenen 8-Byte-Header
   (Länge, Version, Typ, Sequenznummer), und die CRC wird über den gesamten Frame
@@ -20,12 +28,6 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Serial-S-Bus nutzt Data-Mode-Framing (0xB5, Byte-Stuffing, 8N1).
 - Setup und Config-Flow schlagen fehl, wenn die PCD nicht antwortet, statt ein
   Gerät "SAIA PCD (Unknown)" anzulegen.
-
-### Geplant
-- YAML-Konfiguration für Entitäten
-- Automatische Erkennung aller verfügbaren Datenpunkte
-- Unterstützung für Timer und Counter Entitäten
-- Diagnostics Support
 
 ## [0.3.0] - 2026-01-19
 
