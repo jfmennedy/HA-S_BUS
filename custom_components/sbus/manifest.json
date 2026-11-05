@@ -7,7 +7,7 @@
   "documentation": "https://github.com/jfmennedy/HA-S_BUS",
   "issue_tracker": "https://github.com/jfmennedy/HA-S_BUS/issues",
   "requirements": ["serialx>=1.0.0"],
-  "version": "0.5.0",
+  "version": "0.6.0",
   "iot_class": "local_push",
   "integration_type": "hub",
   "zeroconf": [

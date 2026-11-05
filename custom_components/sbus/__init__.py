@@ -41,7 +41,9 @@ from .coordinator import SBusDataUpdateCoordinator
 from .datapoints import get_flags
 from .datapoints import get_registers
 from .entity import unique_id
+from .project import async_load_project
 from .project import async_remove_project
+from .project import plant_parts
 from .sbus_protocol import SBusProtocolError
 from .sbus_protocol import create_sbus_protocol
 
@@ -101,6 +103,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Store coordinator and protocol
     hass.data.setdefault(DOMAIN, {})
+    project = await async_load_project(hass, entry.entry_id)
+    device_info["parts"] = plant_parts(project["points"]) if project else {}
+
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "protocol": protocol,
@@ -277,6 +282,8 @@ def _migrate_identity(hass: HomeAssistant, entry: ConfigEntry, serial: str) -> N
     for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
         if new_identifier in device.identifiers:
             continue
+        if any("#" in identifier for _domain, identifier in device.identifiers):
+            continue  # plant part device; orphans are removed below
         if device_registry.async_get_device(identifiers={new_identifier}):
             continue
         device_registry.async_update_device(
@@ -323,6 +330,18 @@ def _remove_stale_entities(
     for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
         if entity.unique_id not in expected:
             registry.async_remove(entity.entity_id)
+
+    # Plant part devices without data points left
+    device_registry = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(device_registry, entry.entry_id):
+        if (DOMAIN, serial) in device.identifiers:
+            continue
+        if not er.async_entries_for_device(
+            registry, device.id, include_disabled_entities=True
+        ):
+            device_registry.async_update_device(
+                device.id, remove_config_entry_id=entry.entry_id
+            )
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:

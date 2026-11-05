@@ -182,3 +182,54 @@ def migrate_entity_addresses(
         )
     for entity_id, new_unique_id in renames:
         registry.async_update_entity(entity_id, new_unique_id=new_unique_id)
+
+
+def _normalize(text: str) -> str:
+    """"Zirk. UWP" and "ZIRK.UWP" -> "zirkuwp"."""
+    return re.sub(r"[^0-9a-z]", "", text.lower())
+
+
+def plant_parts(points: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Group project points into plant parts (one HA device each).
+
+    A plant part is what the DDC Suite labels with one FBox description,
+    e.g. "Zirk. UWP" = pump FBox + its alarm FBox; internal symbols such as
+    ``S01.ZIRK.UWP.iBetrieb_DI`` (no FBox, label from the symbol path) join
+    the part with the same normalized name.
+
+    Returns ``{symbol: {"part", "device_name", "model", "short_name",
+    "default_name", "description"}}``. Works for project data stored by
+    older versions too (no re-import needed).
+    """
+    members: dict[str, list[dict[str, Any]]] = {}
+    for point in points:
+        key = f"{point['group']}:{_normalize(point['label'])}"
+        members.setdefault(key, []).append(point)
+
+    info: dict[str, dict[str, Any]] = {}
+    for key, part_points in members.items():
+        # Prefer the FBox description ("Zirk. UWP") over the symbol path
+        with_fbox = [p for p in part_points if p.get("fbox_type")]
+        named = (
+            with_fbox or [p for p in part_points if " " in p["label"]] or part_points
+        )
+        label = named[0]["label"]
+        types = [p["fbox_type"] for p in with_fbox]
+        model = max(set(types), key=types.count) if types else "DDC Suite"
+        group = part_points[0]["group"]
+        counts: dict[str, int] = {}
+        for p in part_points:
+            counts[p["variable"]] = counts.get(p["variable"], 0) + 1
+        for p in part_points:
+            short = p["variable"]
+            if counts[short] > 1:  # e.g. "Sperre" in two FBoxes of the part
+                short = ".".join(p["symbol"].split(".")[-2:])
+            info[p["symbol"]] = {
+                "part": key,
+                "device_name": f"{group} {label}",
+                "model": model,
+                "short_name": short,
+                "default_name": f"{p['group']} {p['label']} {p['variable']}".strip(),
+                "description": p.get("description") or None,
+            }
+    return info

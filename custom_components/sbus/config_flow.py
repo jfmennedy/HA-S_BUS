@@ -48,6 +48,7 @@ from .project import apply_selection
 from .project import async_load_project
 from .project import async_save_project
 from .project import migrate_entity_addresses
+from .project import plant_parts
 from .project import remap_to_project
 from .const import CONF_BAUDRATE
 from .const import CONF_CONNECTION_TYPE
@@ -986,6 +987,8 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._group = user_input["group"]
             self._with_parameters = bool(user_input.get("parameters", False))
+            if user_input.get("mode") == "parts":
+                return await self.async_step_select_parts()
             return await self.async_step_select_points()
 
         counts: dict[str, list[int]] = {}
@@ -1007,9 +1010,101 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
                             options=options, mode=selector.SelectSelectorMode.LIST
                         )
                     ),
+                    vol.Required("mode", default="parts"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=["parts", "points"],
+                            translation_key="selection_mode",
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
                     vol.Required("parameters", default=False): selector.BooleanSelector(),
                 }
             ),
+        )
+
+    def _shown(self) -> list[dict[str, Any]]:
+        """Project points of the chosen plant, filtered by the level switch."""
+        return [
+            p
+            for p in self._points()
+            if p["group"] == self._group
+            and (self._with_parameters or p["level"] in OPERATING_LEVELS)
+        ]
+
+    def _configured_symbols(self, shown: list[dict[str, Any]]) -> set[str]:
+        """Shown points that are configured already (by address)."""
+        registers = {r[CONF_ADDRESS] for r in self._registers}
+        flags = {f[CONF_ADDRESS] for f in self._flags}
+        return {
+            p["symbol"]
+            for p in shown
+            if p["address"] in (registers if p["kind"] == KIND_REGISTER else flags)
+        }
+
+    def _save_selection(
+        self, shown: list[dict[str, Any]], selected: set[str]
+    ) -> FlowResult:
+        return self._save(
+            registers=apply_selection(
+                self._registers, [p for p in shown if p["kind"] == KIND_REGISTER], selected
+            ),
+            flags=apply_selection(
+                self._flags, [p for p in shown if p["kind"] == KIND_FLAG], selected
+            ),
+        )
+
+    async def async_step_select_parts(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> FlowResult:
+        """Take over whole plant parts (e.g. "Zirk. UWP") with all data points."""
+        shown = self._shown()
+        parts = plant_parts(self._points())
+        by_part: dict[str, list[dict[str, Any]]] = {}
+        for point in shown:
+            by_part.setdefault(parts[point["symbol"]]["part"], []).append(point)
+        configured = self._configured_symbols(shown)
+        complete = {
+            key
+            for key, members in by_part.items()
+            if all(p["symbol"] in configured for p in members)
+        }
+
+        if user_input is not None:
+            chosen = set(user_input.get("parts", []))
+            selected = set(configured)
+            for key, members in by_part.items():
+                symbols = {p["symbol"] for p in members}
+                if key in chosen:
+                    selected |= symbols
+                elif key in complete:  # unticked: remove the whole part
+                    selected -= symbols
+            return self._save_selection(shown, selected)
+
+        options = []
+        for key, members in sorted(
+            by_part.items(), key=lambda item: parts[item[1][0]["symbol"]]["device_name"]
+        ):
+            info = parts[members[0]["symbol"]]
+            writable = sum(1 for p in members if p["writable"])
+            label = f"{info['device_name']} – {len(members)}"
+            if writable:
+                label += f" ({writable} ✎)"
+            options.append(selector.SelectOptionDict(value=key, label=label))
+        return self.async_show_form(
+            step_id="select_parts",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional("parts", default=sorted(complete)): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
+            description_placeholders={"group": self._group or ""},
         )
 
     async def async_step_select_points(
@@ -1017,31 +1112,13 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         user_input: dict[str, Any] | None = None,
     ) -> FlowResult:
         """Tick the data points of the chosen plant."""
-        shown = [
-            p
-            for p in self._points()
-            if p["group"] == self._group
-            and (self._with_parameters or p["level"] in OPERATING_LEVELS)
-        ]
-        registers_shown = [p for p in shown if p["kind"] == KIND_REGISTER]
-        flags_shown = [p for p in shown if p["kind"] == KIND_FLAG]
+        shown = self._shown()
 
         if user_input is not None:
-            selected = set(user_input.get("points", []))
-            return self._save(
-                registers=apply_selection(self._registers, registers_shown, selected),
-                flags=apply_selection(self._flags, flags_shown, selected),
-            )
+            return self._save_selection(shown, set(user_input.get("points", [])))
 
-        configured_registers = {r[CONF_ADDRESS]: r for r in self._registers}
-        configured_flags = {f[CONF_ADDRESS]: f for f in self._flags}
-        selected = [
-            p["symbol"]
-            for p in shown
-            if (configured_registers if p["kind"] == KIND_REGISTER else configured_flags).get(
-                p["address"]
-            )
-        ]
+        configured = self._configured_symbols(shown)
+        selected = [p["symbol"] for p in shown if p["symbol"] in configured]
         options = [
             selector.SelectOptionDict(value=p["symbol"], label=_point_label(p))
             for p in shown

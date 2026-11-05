@@ -73,6 +73,7 @@ class DataPoint:
     unit: str | None
     minimum: float | None
     maximum: float | None
+    fbox_type: str | None = None
 
     @property
     def operating(self) -> bool:
@@ -122,6 +123,7 @@ def parse_map(text: str) -> dict[str, tuple[str, int]]:
 
 @dataclass(slots=True)
 class _FBoxVariable:
+    fbox_type: str
     label: str
     access: str
     format: str
@@ -151,6 +153,7 @@ def _parse_fbox_variables(text: str) -> dict[int, _FBoxVariable]:
                 continue
             spec = av.get(var)
             variables[int(ident)] = _FBoxVariable(
+                fbox_type=head["head"].split()[0].lstrip("_"),
                 label=label,
                 access=spec["access"] if spec else "v",
                 format=spec["format"] if spec else "",
@@ -223,6 +226,7 @@ def parse_project(fup_text: str, map_text: str) -> list[DataPoint]:
             unit=unit,
             minimum=minimum,
             maximum=maximum,
+            fbox_type=info.fbox_type if info else None,
         )
     return sorted(points.values(), key=lambda p: (p.group, p.label, p.symbol))
 

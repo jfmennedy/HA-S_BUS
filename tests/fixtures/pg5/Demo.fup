@@ -30,6 +30,21 @@ av2=a Freig 0 %s =1:0 {0,1}
 av3=a Soll 0 %1p =200 {0..900} 
 av4=a Uhr 0 %1H =1200:700 {0..2359} \wax=0 
 uName=H01_Anlage
+[_DDC_COPUMP270 3136]
+Fam=DDC27_FAM_CONTROL
+S=Betr_F=40 Schalt_R=41 Sperr_F=42 
+av1=a Descript %T ="":"Zirk. UWP " \wax=0 
+av2=v Betr 0 %s 
+av3=a Schalt 0 %d =0 {0..2} \wax=0 
+av4=v Sperr 0 %s 
+uName=S01_ZIRK_UWP
+[_DDC_ALMOT1SP270 3134]
+Fam=DDC27_FAM_ALARM
+S=BrmSm_F=50 Sperr_F=51 
+av1=a Descript %T ="":"Zirk. UWP " \wax=0 
+av2=v BrmSm 0 %s 
+av3=v Sperr 0 %s 
+uName=S01_ZIRK_UWP_SM
 [RESOURCES]
 HSYM1=10	S01.Speicher.Temp2.Fühler.Istwert	R		1	-1	(1) Physikalischer Wert des Sensors = Ausgang "Iw"			0	0
 HSYM2=11	S01.Speicher.Temp2.Fühler.SmGwOben	F		1	-1	(1) Meldung oberer Grenzwert wurde überschritten			0	0
@@ -40,3 +55,9 @@ HSYM6=21	H01.Anlage.Sollwert	R		1	-1	(2) Resultierender Sollwert			0	0
 HSYM7=22	H01.Anlage.UhrEin	R		1	-1	(4) Einschaltzeit			0	0
 HSYM8=30	PCD.Alarm.Liste	R		1	-1	(1) Not in the map			0	0
 HSYM9=31	H01.Anlage.Info	TEXT		1	-1	(1) Text, not supported			0	0
+HSYM10=40	S01.ZIRK.UWP.Steuerung.Betrieb	F		1	-1	(2) Betriebsmeldung			0	0
+HSYM11=41	S01.ZIRK.UWP.Steuerung.Schaltung	R		1	-1	(3) Schaltbefehl Hand/Auto			0	0
+HSYM12=42	S01.ZIRK.UWP.Steuerung.Sperre	F		1	-1	(1) Sperre des Motors			0	0
+HSYM13=50	S01.ZIRK.UWP.Störungen.BrmSm	F		1	-1	(1) Störmeldung Betriebsrückmeldung fehlt			0	0
+HSYM14=51	S01.ZIRK.UWP.Störungen.Sperre	F		1	-1	(1) Sperre durch Störung			0	0
+HSYM15=60	S01.ZIRK.UWP.iBetrieb_DI	F		1	-1				0	0

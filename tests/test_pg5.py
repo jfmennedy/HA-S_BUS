@@ -10,6 +10,7 @@ from custom_components.sbus.pg5 import PG5ParseError
 from custom_components.sbus.pg5 import decode
 from custom_components.sbus.pg5 import parse_map
 from custom_components.sbus.pg5 import parse_project
+from custom_components.sbus.project import plant_parts
 
 FIXTURES = Path(__file__).parent / "fixtures" / "pg5"
 
@@ -40,7 +41,15 @@ def test_parse_project() -> None:
         "H01.Anlage.Freigabe",
         "H01.Anlage.Sollwert",
         "H01.Anlage.UhrEin",
+        "S01.ZIRK.UWP.Steuerung.Betrieb",
+        "S01.ZIRK.UWP.Steuerung.Schaltung",
+        "S01.ZIRK.UWP.Steuerung.Sperre",
+        "S01.ZIRK.UWP.Störungen.BrmSm",
+        "S01.ZIRK.UWP.Störungen.Sperre",
+        "S01.ZIRK.UWP.iBetrieb_DI",
     }
+    assert points["S01.ZIRK.UWP.Steuerung.Schaltung"].fbox_type == "DDC_COPUMP270"
+    assert points["S01.ZIRK.UWP.iBetrieb_DI"].fbox_type is None
 
     actual = points["S01.Speicher.Temp2.Fühler.Istwert"]
     assert (actual.kind, actual.address, actual.level) == ("R", 3187, 1)
@@ -76,3 +85,24 @@ def test_invalid_files() -> None:
         parse_map(_read("Demo.fup"))
     with pytest.raises(PG5ParseError):
         parse_project(_read("Demo.map"), _read("Demo.map"))
+
+
+def test_plant_parts() -> None:
+    """FBoxes with one description and internal symbols form one plant part."""
+    points = [p.as_dict() for p in parse_project(_read("Demo.fup"), _read("Demo.map"))]
+    parts = plant_parts(points)
+    pump = {s: i for s, i in parts.items() if "ZIRK.UWP" in s}
+    assert len(pump) == 6
+    assert {i["part"] for i in pump.values()} == {"S01:zirkuwp"}
+    info = pump["S01.ZIRK.UWP.Steuerung.Betrieb"]
+    assert (info["device_name"], info["model"], info["short_name"]) == (
+        "S01 Zirk. UWP",
+        "DDC_COPUMP270",
+        "Betrieb",
+    )
+    # "Sperre" exists in both FBoxes of the part
+    assert pump["S01.ZIRK.UWP.Steuerung.Sperre"]["short_name"] == "Steuerung.Sperre"
+    assert pump["S01.ZIRK.UWP.Störungen.Sperre"]["short_name"] == "Störungen.Sperre"
+    sensor = parts["S01.Speicher.Temp2.Fühler.Istwert"]
+    assert sensor["device_name"] == "S01 Speicher Temp. 2"
+    assert sensor["model"] == "DDC_ANSENSOR270"
