@@ -15,6 +15,11 @@
 > funktioniert hier die Ether-S-Bus-Kommunikation mit echten PCDs (im Original
 > endet die Einrichtung mit „Timeout communicating with S-Bus device“), und
 > Register und Flags sind direkt in Home Assistant konfigurierbar.
+> Außerdem wurde der Fork erweitert, um **DDC-Suite-Projekte aus PG5
+> einzulesen**: Datenpunkte, ganze Anlagenteile und – mit der
+> DDC-Suite-Bibliothek – lesbare Namen und Auswahltexte lassen sich direkt aus
+> dem Projekt übernehmen, siehe
+> [Datenpunkte aus dem PG5-Projekt übernehmen](#datenpunkte-aus-dem-pg5-projekt-übernehmen).
 > Alle Änderungen stehen im [CHANGELOG](CHANGELOG.md).
 
 ## 🌟 Features
@@ -139,7 +144,7 @@ PG5-Projekt wählen, das auf der PCD läuft:
 1. Projekt in PG5 bauen (damit die Adressen aktuell sind).
 2. **Konfigurieren → PG5-Projekt importieren** und die Dateien hochladen:
    - die Fupla-Datei, z. B. `HKLS.fup`
-   - die Linker-Map aus dem Ordner `Lst`, z. B. `Lst/Mardelle5.map`
+   - die Linker-Map aus dem Ordner `Lst`: `Lst/<Projektname>.map`
    - optional die **DDC-Suite-Bibliothek**: ein ZIP mit den Dateien
      `DDC27_FAM_*_de.idx` aus dem Bibliotheksordner von PG5 (siehe unten)
 3. **Datenpunkte aus Projekt wählen**: Anlage wählen (z. B. „S01“) und dann
