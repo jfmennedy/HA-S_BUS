@@ -12,6 +12,22 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Unterstützung für Timer und Counter Entitäten
 - Diagnostics Support
 
+## [0.6.0] - 2026-11-05
+
+### Hinzugefügt
+- **Ganze Anlagenteile übernehmen:** Bei „Datenpunkte aus Projekt wählen“
+  lassen sich Anlagenteile wie „S01 Zirk. UWP“ mit allen Datenpunkten auf
+  einmal auswählen. Ein Anlagenteil umfasst alle FBoxen mit derselben
+  Beschreibung (z. B. Pumpe und Störmeldungen) und die zugehörigen internen
+  Symbole.
+- Jeder Anlagenteil wird ein eigenes Gerät (verbunden über die PCD). Auf der
+  Geräteseite legt „Zum Dashboard hinzufügen“ eine Karte mit allen
+  Datenpunkten an. Entitäten heißen dort wie in der DDC Suite („Betrieb“),
+  die Beschreibung steht als Attribut `description` bereit.
+- Bereits gewählte Datenpunkte aus dem Projekt wandern automatisch in ihr
+  Anlagenteil-Gerät; eigene Namen bleiben erhalten. Ein erneuter Import ist
+  nicht nötig. Leere Anlagenteil-Geräte werden entfernt.
+
 ## [0.5.0] - 2026-11-05
 
 ### Hinzugefügt
@@ -243,7 +259,8 @@ wurde versehentlich vor dem Merge angelegt und enthält den Stand von 0.4.2.
 - Type Hints für alle Funktionen
 - Logging und Error Handling
 
-[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.6.0
 [0.5.0]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.5.0
 [0.4.8]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.8
 [0.4.7]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.7

@@ -100,7 +100,8 @@
         "description": "Zahlen: Betriebswerte / alle Datenpunkte.",
         "data": {
           "group": "Anlage",
-          "parameters": "Auch Einstell- und Inbetriebnahme-Parameter anzeigen"
+          "parameters": "Auch Einstell- und Inbetriebnahme-Parameter anzeigen",
+          "mode": "Auswahl"
         }
       },
       "select_points": {
@@ -108,6 +109,13 @@
         "description": "{count} Datenpunkte. Angehakte werden zu Entitäten; ✎ = einstellbar (Zahlenfeld bzw. Schalter). Haken entfernen löscht die Entität.",
         "data": {
           "points": "Datenpunkte"
+        }
+      },
+      "select_parts": {
+        "title": "Anlagenteile von {group}",
+        "description": "Jedes angehakte Anlagenteil wird mit allen Datenpunkten übernommen und als eigenes Gerät angelegt (z. B. „S01 Zirk. UWP“). Auf der Geräteseite erstellt „Zum Dashboard hinzufügen“ daraus eine Karte. Zahlen: Datenpunkte (✎ einstellbar). Haken bei einem vollständigen Anlagenteil entfernen löscht es.",
+        "data": {
+          "parts": "Anlagenteile"
         }
       }
     },
@@ -124,6 +132,12 @@
         "signed": "Ganzzahl (mit Vorzeichen)",
         "unsigned": "Ganzzahl (ohne Vorzeichen)",
         "float": "Gleitkomma (IEEE 754)"
+      }
+    },
+    "selection_mode": {
+      "options": {
+        "parts": "Ganze Anlagenteile (z. B. Zirk. UWP)",
+        "points": "Einzelne Datenpunkte"
       }
     }
   },

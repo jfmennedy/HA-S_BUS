@@ -197,7 +197,8 @@
         "description": "Numbers: operating values / all data points.",
         "data": {
           "group": "Plant",
-          "parameters": "Also show settings and commissioning parameters"
+          "parameters": "Also show settings and commissioning parameters",
+          "mode": "Selection"
         }
       },
       "select_points": {
@@ -205,6 +206,13 @@
         "description": "{count} data points. Ticked ones become entities; ✎ = adjustable (number entity or switch). Removing the tick removes the entity.",
         "data": {
           "points": "Data points"
+        }
+      },
+      "select_parts": {
+        "title": "Plant parts of {group}",
+        "description": "Each ticked plant part is taken over with all its data points and becomes its own device (e.g. “S01 Zirk. UWP”). On the device page, “Add to dashboard” creates a card with all of them. Numbers: data points (✎ adjustable). Unticking a complete part removes it.",
+        "data": {
+          "parts": "Plant parts"
         }
       }
     },
@@ -327,6 +335,12 @@
         "signed": "Integer (signed)",
         "unsigned": "Integer (unsigned)",
         "float": "Float (IEEE 754)"
+      }
+    },
+    "selection_mode": {
+      "options": {
+        "parts": "Whole plant parts (e.g. Zirk. UWP)",
+        "points": "Single data points"
       }
     }
   }

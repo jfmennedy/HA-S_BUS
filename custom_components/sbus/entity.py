@@ -35,13 +35,31 @@ class SBusEntity(CoordinatorEntity[SBusDataUpdateCoordinator]):
         self._attr_unique_id = unique_id(
             device_info["identity"], self._unique_prefix, self._address
         )
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_info["identity"])},
-            name=device_info.get("product_type", "SAIA PCD"),
-            manufacturer="SAIA-Burgess Controls",
-            model=device_info.get("pcd_type") or "SAIA PCD",
-            sw_version=device_info.get("firmware_version"),
-        )
+        identity = device_info["identity"]
+        part = device_info.get("parts", {}).get(config.get(CONF_SYMBOL))
+        self._description: str | None = None
+        if part:
+            # Data point from the PG5 project: own device per plant part
+            # ("S01 Zirk. UWP"), connected via the PCD. Its device page shows
+            # all data points of the part and can add them to a dashboard.
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, part_identifier(identity, part["part"]))},
+                name=part["device_name"],
+                manufacturer="SAIA-Burgess Controls",
+                model=part["model"],
+                via_device=(DOMAIN, identity),
+            )
+            if self._attr_name == part["default_name"]:
+                self._attr_name = part["short_name"]
+            self._description = part["description"]
+        else:
+            self._attr_device_info = DeviceInfo(
+                identifiers={(DOMAIN, identity)},
+                name=device_info.get("product_type", "SAIA PCD"),
+                manufacturer="SAIA-Burgess Controls",
+                model=device_info.get("pcd_type") or "SAIA PCD",
+                sw_version=device_info.get("firmware_version"),
+            )
 
     @property
     def _raw(self) -> Any:
@@ -61,7 +79,14 @@ class SBusEntity(CoordinatorEntity[SBusDataUpdateCoordinator]):
         attributes = {"address": self._address, "type": self._data_key[:-1]}
         if symbol := self._config.get(CONF_SYMBOL):
             attributes["symbol"] = symbol
+        if self._description:
+            attributes["description"] = self._description
         return attributes
+
+
+def part_identifier(identity: str, part: str) -> str:
+    """Device identifier of a plant part."""
+    return f"{identity}#{part}"
 
 
 def unique_id(serial: str, prefix: str, address: int) -> str:

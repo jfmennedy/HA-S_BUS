@@ -29,3 +29,15 @@ H01.Anlage.UhrEin
            R    1791          4#    4     
 H01.Anlage.Prog
            FB   5             4#    4     
+S01.ZIRK.UWP.Steuerung.Betrieb
+           F    4397          4#    4     
+S01.ZIRK.UWP.Steuerung.Schaltung
+           R    3252          4#    4     
+S01.ZIRK.UWP.Steuerung.Sperre
+           F    4398          4#    4     
+S01.ZIRK.UWP.Störungen.BrmSm
+           F    4382          4#    4     
+S01.ZIRK.UWP.Störungen.Sperre
+           F    4400          4#    4     
+S01.ZIRK.UWP.iBetrieb_DI
+           F    4376          4#    4     

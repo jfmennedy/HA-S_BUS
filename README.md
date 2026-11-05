@@ -140,10 +140,20 @@ PG5-Projekt wählen, das auf der PCD läuft:
 2. **Konfigurieren → PG5-Projekt importieren** und zwei Dateien hochladen:
    - die Fupla-Datei, z. B. `HKLS.fup`
    - die Linker-Map aus dem Ordner `Lst`, z. B. `Lst/Mardelle5.map`
-3. **Datenpunkte aus Projekt wählen**: Anlage wählen (z. B. „S01“), dann die
-   gewünschten Datenpunkte ankreuzen. Die Liste zeigt die Klartext-Namen und
-   Beschreibungen der DDC-Suite-FBoxen, z. B.
-   „Speicher Temp. 2 – Istwert: Physikalischer Wert des Sensors (R 3187)“.
+3. **Datenpunkte aus Projekt wählen**: Anlage wählen (z. B. „S01“) und dann
+   - **ganze Anlagenteile** ankreuzen, z. B. „S01 Zirk. UWP – 14 (3 ✎)“:
+     alle Datenpunkte des Anlagenteils werden übernommen, oder
+   - **einzelne Datenpunkte** aus einer Liste mit Klartext-Namen und
+     Beschreibungen, z. B.
+     „Speicher Temp. 2 – Istwert: Physikalischer Wert des Sensors (R 3187)“.
+
+Ein Anlagenteil ist alles, was in der DDC Suite dieselbe FBox-Beschreibung
+trägt (z. B. Pumpen- und Störmeldungs-FBox von „Zirk. UWP“). Jeder
+Anlagenteil wird ein eigenes Gerät unter der PCD. Auf dessen Geräteseite
+stehen alle Datenpunkte beisammen, und **Zum Dashboard hinzufügen** legt
+daraus mit einem Klick eine Karte an. Die Entitäten heißen dort kurz wie in
+der DDC Suite („Betrieb“, „BrmSm“), die Beschreibung steht im Attribut
+`description`.
 
 Standardmäßig erscheinen die Betriebswerte (DDC-Suite-Stufen 1–3: Istwerte,
 Sollwerte, Zustände, Meldungen). Mit „Auch Einstell- und

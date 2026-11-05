@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -106,7 +107,7 @@ async def _import(hass, entry):
 async def _select(hass, entry, group, symbols, *, parameters=False):
     result = await _menu(hass, entry, "select_group")
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"group": group, "parameters": parameters}
+        result["flow_id"], {"group": group, "mode": "points", "parameters": parameters}
     )
     assert result["step_id"] == "select_points"
     offered = [o["value"] for o in result["data_schema"].schema["points"].config["options"]]
@@ -130,7 +131,7 @@ async def test_import_and_select(hass, pcd_entry, uploads) -> None:  # noqa: ARG
     """Import, pick sensor/alarm/setpoint/enable, write the setpoint."""
     pcd, entry = pcd_entry
     placeholders = await _import(hass, entry)
-    assert placeholders["points"] == "7"
+    assert placeholders["points"] == "13"
     assert placeholders["groups"] == "H01, S01"
     # the manual register got the symbol of its address
     assert entry.options["registers"][0]["symbol"] == "S01.Speicher.Temp2.Fühler.Istwert"
@@ -142,10 +143,12 @@ async def test_import_and_select(hass, pcd_entry, uploads) -> None:  # noqa: ARG
         ["S01.Speicher.Temp2.Fühler.Istwert", "S01.Speicher.Temp2.Fühler.SmGwOben"],
     )
     # operating values only, the manual register is ticked already
-    assert offered == [
+    assert offered[:2] == [
         "S01.Speicher.Temp2.Fühler.Istwert",
         "S01.Speicher.Temp2.Fühler.SmGwOben",
     ]
+    assert "S01.Speicher.Temp2.Fühler.FilterZeit" not in offered
+    assert "S01.ZIRK.UWP.iBetrieb_DI" not in offered
     assert preselected == ["S01.Speicher.Temp2.Fühler.Istwert"]
     # the manual register keeps its name
     sensor = hass.states.get(_entity(hass, "sensor", entry, 3187, "register"))
@@ -229,3 +232,67 @@ async def test_invalid_upload(hass, pcd_entry, uploads) -> None:  # noqa: ARG001
 def test_value_to_raw(value, data_type, factor, raw) -> None:
     """Displayed values are converted back to raw register values."""
     assert value_to_raw(value, data_type, factor) == raw
+
+
+async def _select_parts(hass, entry, group, parts):
+    result = await _menu(hass, entry, "select_group")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"group": group, "mode": "parts", "parameters": False}
+    )
+    assert result["step_id"] == "select_parts"
+    options = {
+        o["value"]: o["label"]
+        for o in result["data_schema"].schema["parts"].config["options"]
+    }
+    preselected = result["data_schema"]({})["parts"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"parts": parts}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    return options, preselected
+
+
+async def test_select_plant_part(hass, pcd_entry, uploads) -> None:  # noqa: ARG001
+    """A whole plant part is taken over and becomes its own device."""
+    _pcd, entry = pcd_entry
+    await _import(hass, entry)
+    options, preselected = await _select_parts(hass, entry, "S01", ["S01:zirkuwp"])
+    assert options == {
+        "S01:speichertemp2": "S01 Speicher Temp. 2 – 2",
+        "S01:zirkuwp": "S01 Zirk. UWP – 5 (1 ✎)",  # iBetrieb_DI is no operating value
+    }
+    assert preselected == []  # Speicher Temp. 2 is only partly configured
+
+    devices = dr.async_get(hass)
+    identity = f"127.0.0.1:{entry.data['port']}:{STATION}"
+    pcd = devices.async_get_device({(DOMAIN, identity)})
+    pump = devices.async_get_device({(DOMAIN, f"{identity}#S01:zirkuwp")})
+    assert (pump.name, pump.model, pump.via_device_id) == (
+        "S01 Zirk. UWP",
+        "DDC_COPUMP270",
+        pcd.id,
+    )
+    entities = er.async_entries_for_device(er.async_get(hass), pump.id)
+    assert sorted((e.domain, e.original_name) for e in entities) == [
+        ("binary_sensor", "Betrieb"),
+        ("binary_sensor", "BrmSm"),
+        ("binary_sensor", "Steuerung.Sperre"),
+        ("binary_sensor", "Störungen.Sperre"),
+        ("number", "Schaltung"),
+    ]
+    brm = hass.states.get(_entity(hass, "binary_sensor", entry, 4382, "flag"))
+    assert brm.name == "S01 Zirk. UWP BrmSm"
+    assert brm.attributes["description"] == "Störmeldung Betriebsrückmeldung fehlt"
+
+    # The manual register moved to its plant part and keeps its name
+    sensor = er.async_get(hass).async_get(_entity(hass, "sensor", entry, 3187, "register"))
+    assert devices.async_get(sensor.device_id).name == "S01 Speicher Temp. 2"
+    assert sensor.original_name == "Pufferspeicher Oben"
+
+    # Unticking the complete part removes entities and device
+    _options, preselected = await _select_parts(hass, entry, "S01", [])
+    assert preselected == ["S01:zirkuwp"]
+    assert devices.async_get_device({(DOMAIN, f"{identity}#S01:zirkuwp")}) is None
+    assert _entity(hass, "binary_sensor", entry, 4382, "flag") is None
+    assert _entity(hass, "sensor", entry, 3187, "register")  # not part of it
