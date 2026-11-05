@@ -191,21 +191,26 @@ async def udp_pcd(socket_enabled):  # noqa: ARG001
     transport.close()
 
 
-async def test_device_info_timeout_after_firmware(udp_pcd) -> None:
-    """A timeout on a later system register is not swallowed."""
+async def test_device_info_unreachable(udp_pcd) -> None:
+    """A PCD answering neither the version nor a register is unreachable."""
     pcd, protocol, _port = udp_pcd
-    pcd.max_answers = 1  # only R 600 is answered
+    pcd.silent = True
     with pytest.raises(SBusTimeoutError):
         await protocol.get_device_info()
 
 
-async def test_device_info_fallback_identity(udp_pcd) -> None:
-    """Without a readable serial number the endpoint is used as identity."""
+@pytest.mark.parametrize("mode", ["nak", "ignore"])
+async def test_device_info_without_program_version(udp_pcd, mode: str) -> None:
+    """PCDs without Read Program Version are still set up (register check)."""
     pcd, protocol, port = udp_pcd
-    pcd.nak_registers = {611, 612}
+    if mode == "nak":
+        pcd.program_version = None
+    else:
+        pcd.ignore_program_version = True
     info = await protocol.get_device_info()
-    assert info["serial_number"] == f"127.0.0.1:{port}:{STATION}"
-    assert info["product_type"] == "PCD3.M5540"
+    assert info["identity"] == f"127.0.0.1:{port}:{STATION}"
+    assert info["pcd_type"] is None
+    assert info["firmware_version"] is None
 
 
 # ----------------------------------------------------------------------

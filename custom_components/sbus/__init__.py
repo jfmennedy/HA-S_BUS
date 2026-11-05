@@ -70,7 +70,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.info(
             "Connected to S-Bus device: %s (S/N: %s) via %s",
             device_info.get("product_type", "Unknown"),
-            device_info.get("serial_number", "Unknown"),
+            device_info.get("firmware_version") or "unknown firmware",
             entry.data.get("protocol_type", "Ether-S-Bus"),
         )
 
@@ -101,21 +101,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "device_info": device_info,
     }
 
-    _migrate_identity(hass, entry, device_info["serial_number"])
+    _migrate_identity(hass, entry, device_info["identity"])
 
     # Register device in device registry
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, device_info["serial_number"])},
+        identifiers={(DOMAIN, device_info["identity"])},
         name=device_info.get("product_type", "SAIA PCD"),
         manufacturer="SAIA-Burgess Controls",
-        model=device_info.get("product_type"),
-        sw_version=str(device_info.get("firmware_version")),
-        serial_number=device_info.get("serial_number"),
+        model=device_info.get("pcd_type") or "SAIA PCD",
+        sw_version=device_info.get("firmware_version"),
+        # S-Bus provides no serial number; clear values from older versions
+        serial_number=None,
     )
 
-    _remove_stale_entities(hass, entry, device_info["serial_number"], registers, flags)
+    _remove_stale_entities(hass, entry, device_info["identity"], registers, flags)
 
     # Set up platforms
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

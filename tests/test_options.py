@@ -16,7 +16,6 @@ from custom_components.sbus.datapoints import convert_register
 from .test_sbus_protocol import STATION
 from .test_sbus_protocol import FakePCD
 
-SERIAL = "123456789ABCDEF0"
 
 
 @pytest.fixture
@@ -65,8 +64,15 @@ async def _options(hass, entry, step: str, user_input: dict) -> dict:
     return result
 
 
+def _identity(entry) -> str:
+    return f"127.0.0.1:{entry.data['port']}:{STATION}"
+
+
 def _entity_id(hass, domain: str, unique: str) -> str | None:
-    return er.async_get(hass).async_get_entity_id(domain, DOMAIN, f"{SERIAL}_{unique}")
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    return er.async_get(hass).async_get_entity_id(
+        domain, DOMAIN, f"{_identity(entry)}_{unique}"
+    )
 
 
 async def test_legacy_entities_without_configuration(hass, pcd_entry) -> None:
@@ -101,7 +107,7 @@ async def test_add_temperature_register(hass, pcd_entry) -> None:
     assert state.attributes["raw_value"] == 325
 
     entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
-    assert [e.unique_id for e in entities] == [f"{SERIAL}_register_3219"]
+    assert [e.unique_id for e in entities] == [f"{_identity(entry)}_register_3219"]
 
     # Duplicate address is rejected
     result = await _options(

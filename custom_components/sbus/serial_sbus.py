@@ -192,7 +192,9 @@ class SerialSBusProtocol(SBusProtocolBase):
             raise SBusCRCError(msg)
         return attribute, bytes(body[1:-2])
 
-    async def _send_and_receive(self, pdu: bytes, data_size: int) -> tuple[int, bytes]:
+    async def _send_and_receive(
+        self, pdu: bytes, data_size: int | None
+    ) -> tuple[int, bytes]:
         """Send a PDU as Serial-S-Bus data mode frame and receive the reply.
 
         Raises:
@@ -203,6 +205,12 @@ class SerialSBusProtocol(SBusProtocolBase):
             await self.connect()
         assert self._reader is not None
         assert self._writer is not None
+
+        if data_size is None:
+            # Data mode frames carry no length; without knowing the reply
+            # size the end of the reply can't be detected.
+            msg = "Replies of unknown length are not supported on Serial-S-Bus"
+            raise SBusProtocolError(msg)
 
         frame = self.build_serial_frame(pdu)
         _LOGGER.debug("Sending serial frame: %s", frame.hex())

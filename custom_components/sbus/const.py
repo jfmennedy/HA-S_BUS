@@ -66,18 +66,10 @@ CMD_WRITE_RTC: Final = 0x0C
 CMD_WRITE_OUTPUT: Final = 0x0D
 CMD_WRITE_REGISTER: Final = 0x0E
 CMD_WRITE_TIMER: Final = 0x0F
+CMD_READ_PROGRAM_VERSION: Final = 0x20
 CMD_READ_DB: Final = 0x96
 CMD_WRITE_DB: Final = 0x97
 
-# System registers for device identification
-SYSREG_FIRMWARE: Final = 600
-SYSREG_PRODUCT_TYPE_START: Final = 605
-SYSREG_PRODUCT_TYPE_END: Final = 608
-SYSREG_HW_VERSION: Final = 609
-SYSREG_SERIAL_START: Final = 611
-SYSREG_SERIAL_END: Final = 612
-SYSREG_PROTOCOL: Final = 620
-SYSREG_BAUDRATE: Final = 621
 
 # Entity platforms
 PLATFORMS: Final = ["sensor", "binary_sensor", "switch"]

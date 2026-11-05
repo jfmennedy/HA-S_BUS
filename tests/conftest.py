@@ -41,6 +41,7 @@ def mock_sbus_protocol():
                 "product_type": "PCD1.M2120",
                 "hw_version": 1,
                 "serial_number": "12345678ABCDEF12",
+                "identity": "12345678ABCDEF12",
             }
         )
         protocol.read_registers = AsyncMock(return_value=[0] * 10)

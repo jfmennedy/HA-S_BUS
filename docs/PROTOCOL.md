@@ -49,18 +49,16 @@ n+2    | CRC Low    | 1     | CRC-16 Low Byte
 | 0x0E   | Register  | Write     | Register schreiben              |
 | 0x0F   | Timer     | Write     | Timer schreiben                 |
 
-### Systemregister
+### Geräte-Identifikation
 
-Für Device-Identifikation:
+PCDs haben keine festen „Systemregister“ für Typ oder Firmware: R 0 und
+folgende sind gewöhnliche Programmregister. Typ und Firmware liefert der
+Befehl **Read Program Version** (`0x20`, ohne Nutzdaten). Die Antwort ist
+ASCII-Text: 5 Zeichen CPU-Typ, danach die Firmware-Version
+(z. B. `D3M53` + `1.28`).
 
-| Register | Inhalt                | Format | Beispiel        |
-|----------|-----------------------|--------|-----------------|
-| R 600    | Firmware Version      | INT    | 100             |
-| R 605-608| Produkt-Typ           | ASCII  | "PCD1.M2120"    |
-| R 609    | Hardware Version      | HEX    | 0x0001          |
-| R 611-612| Seriennummer          | HEX    | 0x12345678...   |
-| R 620    | Protokollwahl         | INT    | 1 = S-Bus       |
-| R 621    | Baudrate              | INT    | 9600, 19200...  |
+Weitere Status-Befehle: `0x1B` Read PCD Status (`R` = Run, `S` = Stop,
+`H` = Halt), `0x1D` Read Station Number.
 
 ## Implementierungsdetails
 

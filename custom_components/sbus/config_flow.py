@@ -153,7 +153,7 @@ class SBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._config_data,
                 )
 
-                await self.async_set_unique_id(device_info["serial_number"])
+                await self.async_set_unique_id(device_info["identity"])
                 self._abort_if_unique_id_configured()
 
                 host = user_input[CONF_HOST]
@@ -232,7 +232,7 @@ class SBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._config_data,
                 )
 
-                await self.async_set_unique_id(device_info["serial_number"])
+                await self.async_set_unique_id(device_info["identity"])
                 self._abort_if_unique_id_configured()
 
                 serial_port = user_input[CONF_SERIAL_PORT]
@@ -315,7 +315,7 @@ class SBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     self._config_data,
                 )
 
-                await self.async_set_unique_id(device_info["serial_number"])
+                await self.async_set_unique_id(device_info["identity"])
                 self._abort_if_unique_id_configured()
 
                 host = user_input[CONF_HOST]
@@ -410,7 +410,7 @@ class SBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Try to get device info for unique ID
         try:
             device_info = await validate_connection(self.hass, self._config_data)
-            await self.async_set_unique_id(device_info["serial_number"])
+            await self.async_set_unique_id(device_info["identity"])
             self._abort_if_unique_id_configured(
                 updates={
                     CONF_HOST: host,
@@ -472,7 +472,7 @@ class SBusConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             device_info = await validate_connection(self.hass, self._config_data)
-            await self.async_set_unique_id(device_info["serial_number"])
+            await self.async_set_unique_id(device_info["identity"])
             self._abort_if_unique_id_configured(
                 updates={
                     CONF_HOST: host,

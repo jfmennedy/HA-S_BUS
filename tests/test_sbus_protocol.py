@@ -14,6 +14,7 @@ import pytest
 from custom_components.sbus.const import ATTR_ACK
 from custom_components.sbus.const import ATTR_RESPONSE
 from custom_components.sbus.const import CMD_READ_FLAG
+from custom_components.sbus.const import CMD_READ_PROGRAM_VERSION
 from custom_components.sbus.const import CMD_READ_REGISTER
 from custom_components.sbus.const import CMD_WRITE_FLAG
 from custom_components.sbus.const import CMD_WRITE_REGISTER
@@ -37,16 +38,11 @@ class FakePCD(asyncio.DatagramProtocol):
 
     def __init__(self) -> None:
         """Initialize the fake PCD."""
-        self.registers: dict[int, int] = {
-            600: 0x00010203,
-            605: int.from_bytes(b"PCD3", "big"),
-            606: int.from_bytes(b".M55", "big"),
-            607: int.from_bytes(b"40\x00\x00", "big"),
-            608: 0,
-            609: 0x00000102,
-            611: 0x12345678,
-            612: 0x9ABCDEF0,
-        }
+        self.registers: dict[int, int] = {}
+        # Reply to "Read Program Version" like digimat-saia's PCD emulation
+        # (CPU type 5 chars + firmware); None = PCD doesn't know the command
+        self.program_version: bytes | None = b"D3M53" + b"1.28"
+        self.ignore_program_version = False
         self.flags: dict[int, bool] = {}
         self.requests: list[bytes] = []
         self.silent = False
@@ -94,6 +90,12 @@ class FakePCD(asyncio.DatagramProtocol):
         self.transport.sendto(frame, addr)
 
     def _handle(self, cmd: int, payload: bytes) -> tuple[int, bytes] | None:
+        if cmd == CMD_READ_PROGRAM_VERSION:
+            if self.ignore_program_version:
+                return None
+            if self.program_version is None:
+                return ATTR_ACK, b"\x00\x01"  # NAK
+            return ATTR_RESPONSE, self.program_version
         if cmd == CMD_READ_REGISTER:
             count = payload[0] + 1
             address = struct.unpack("!H", payload[1:3])[0]
@@ -253,12 +255,14 @@ async def test_read_and_write_flags(fake_pcd) -> None:
 
 @pytest.mark.enable_socket
 async def test_get_device_info(fake_pcd) -> None:
-    """Device information is read from the system registers."""
-    _pcd, protocol = fake_pcd
+    """PCD type and firmware come from Read Program Version."""
+    pcd, protocol = fake_pcd
     info = await protocol.get_device_info()
-    assert info["product_type"] == "PCD3.M5540"
-    assert info["firmware_version_str"] == "1.2.3"
-    assert info["serial_number"] == "123456789ABCDEF0"
+    assert info["pcd_type"] == "D3M53"
+    assert info["firmware_version"] == "1.28"
+    assert info["identity"] == f"127.0.0.1:{protocol.port}:{STATION}"
+    _seq, _attr, pdu = SBusProtocolBase.parse_ether_frame(pcd.requests[0])
+    assert pdu == bytes([STATION, CMD_READ_PROGRAM_VERSION])
 
 
 @pytest.mark.enable_socket

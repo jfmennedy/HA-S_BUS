@@ -38,7 +38,9 @@ async def setup_pcd(hass, enable_custom_integrations, socket_enabled):  # noqa: 
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    device = dr.async_get(hass).async_get_device({(DOMAIN, "123456789ABCDEF0")})
+    device = dr.async_get(hass).async_get_device(
+        {(DOMAIN, f"127.0.0.1:{port}:{STATION}")}
+    )
     yield pcd, device
     await hass.config_entries.async_unload(entry.entry_id)
     transport.close()

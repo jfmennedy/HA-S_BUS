@@ -100,7 +100,7 @@ class ProfiSBusProtocol(SBusProtocolBase):
             self.station,
         )
 
-    async def _send_and_receive(self, pdu: bytes, data_size: int) -> tuple[int, bytes]:  # noqa: ARG002
+    async def _send_and_receive(self, pdu: bytes, data_size: int | None) -> tuple[int, bytes]:  # noqa: ARG002
         """Send a PDU via the Profibus gateway and receive the reply.
 
         Profi-S-Bus uses the same frame layout as Ether-S-Bus. Gateway

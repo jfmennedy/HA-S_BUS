@@ -201,19 +201,19 @@ Diese Integration implementiert alle drei SAIA S-Bus Protokoll-Varianten:
 - **Gateway**: Benötigt Profibus-zu-Ethernet Gateway
 - **Adressierung**: Separate Profibus- und S-Bus-Adressen
 
-### Systemregister
+### Geräteinformationen
 
-Beim Einrichten werden diese Systemregister gelesen:
+Beim Einrichten fragt die Integration die PCD mit dem S-Bus-Befehl
+„Read Program Version“ (`0x20`) nach CPU-Typ und Firmware-Version. Beides
+erscheint in den Geräteinformationen als Modell und Firmware. Kennt eine PCD
+den Befehl nicht, prüft ein Registerzugriff, ob sie erreichbar ist.
 
-| Register | Inhalt | Pflicht |
-|---|---|---|
-| R 600 | Firmware-Version (Major.Minor.Patch) | ja – prüft, ob die PCD antwortet |
-| R 605–608 | Produkttyp (ASCII, z. B. „PCD3.M5360“) | nein |
-| R 609 | Hardware-Version | nein |
-| R 611–612 | Seriennummer | nein |
+Eine Seriennummer lässt sich über S-Bus nicht in dokumentierter Form
+auslesen. Als Gerätekennung dient deshalb IP-Adresse, Port und Station
+(bzw. serielle Schnittstelle und Station).
 
-Antwortet die PCD auf ein optionales Register nicht, wird es übersprungen.
-Ohne Seriennummer dient IP-Adresse, Port und Station als Gerätekennung.
+Bei Serial-S-Bus wird die Firmware nicht abgefragt, weil die Länge der
+Antwort dort nicht erkennbar ist.
 
 ### Architektur
 
