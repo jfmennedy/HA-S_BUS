@@ -12,6 +12,13 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Unterstützung für Timer und Counter Entitäten
 - Diagnostics Support
 
+## [0.4.8] - 2026-11-05
+
+### Geändert
+- Modell und Firmware werden lesbar angezeigt: aus „D3M53“ wird „PCD3.M53“
+  (CPU-Familie PCD3.M53xx), aus „128“ wird „1.28“. Die PCD liefert nur
+  Haupt- und Nebenversion, keine Patch-Stelle.
+
 ## [0.4.7] - 2026-11-05
 
 ### Behoben
@@ -220,7 +227,8 @@ wurde versehentlich vor dem Merge angelegt und enthält den Stand von 0.4.2.
 - Type Hints für alle Funktionen
 - Logging und Error Handling
 
-[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.4.7...HEAD
+[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.4.8...HEAD
+[0.4.8]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.8
 [0.4.7]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.7
 [0.4.6]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.6
 [0.4.5]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.5

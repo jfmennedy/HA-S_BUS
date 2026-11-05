@@ -54,8 +54,8 @@ n+2    | CRC Low    | 1     | CRC-16 Low Byte
 PCDs haben keine festen „Systemregister“ für Typ oder Firmware: R 0 und
 folgende sind gewöhnliche Programmregister. Typ und Firmware liefert der
 Befehl **Read Program Version** (`0x20`, ohne Nutzdaten). Die Antwort ist
-ASCII-Text: 5 Zeichen CPU-Typ, danach die Firmware-Version
-(z. B. `D3M53` + `1.28`).
+ASCII-Text: 5 Zeichen CPU-Typ, danach die Firmware-Version als drei Ziffern
+(z. B. `D3M53` + `128` bei einer PCD3.M5360 mit Firmware 1.28.51).
 
 Weitere Status-Befehle: `0x1B` Read PCD Status (`R` = Run, `S` = Stop,
 `H` = Halt), `0x1D` Read Station Number.

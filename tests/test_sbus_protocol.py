@@ -22,6 +22,8 @@ from custom_components.sbus.ether_sbus import EtherSBusProtocol
 from custom_components.sbus.sbus_protocol_base import SBusCRCError
 from custom_components.sbus.sbus_protocol_base import SBusNakError
 from custom_components.sbus.sbus_protocol_base import SBusProtocolBase
+from custom_components.sbus.sbus_protocol_base import format_firmware
+from custom_components.sbus.sbus_protocol_base import format_pcd_type
 from custom_components.sbus.sbus_protocol_base import SBusTimeoutError
 from custom_components.sbus.serial_sbus import SerialSBusProtocol
 
@@ -39,9 +41,9 @@ class FakePCD(asyncio.DatagramProtocol):
     def __init__(self) -> None:
         """Initialize the fake PCD."""
         self.registers: dict[int, int] = {}
-        # Reply to "Read Program Version" like digimat-saia's PCD emulation
-        # (CPU type 5 chars + firmware); None = PCD doesn't know the command
-        self.program_version: bytes | None = b"D3M53" + b"1.28"
+        # Reply to "Read Program Version" as a real PCD3.M5360 with firmware
+        # 1.28.51 sends it; None = PCD doesn't know the command
+        self.program_version: bytes | None = b"D3M53" + b"128"
         self.ignore_program_version = False
         self.flags: dict[int, bool] = {}
         self.requests: list[bytes] = []
@@ -258,7 +260,7 @@ async def test_get_device_info(fake_pcd) -> None:
     """PCD type and firmware come from Read Program Version."""
     pcd, protocol = fake_pcd
     info = await protocol.get_device_info()
-    assert info["pcd_type"] == "D3M53"
+    assert info["pcd_type"] == "PCD3.M53"
     assert info["firmware_version"] == "1.28"
     assert info["identity"] == f"127.0.0.1:{protocol.port}:{STATION}"
     _seq, _attr, pdu = SBusProtocolBase.parse_ether_frame(pcd.requests[0])
@@ -318,3 +320,20 @@ async def test_parameter_validation() -> None:
         await protocol.read_registers(10000, 1)
     with pytest.raises(ValueError):
         await protocol.write_register(100, -1)
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [("D3M53", "PCD3.M53"), ("D1M21", "PCD1.M21"), ("D2M48", "PCD2.M48"), ("xxDIG", "xxDIG")],
+)
+def test_format_pcd_type(raw: str, expected: str) -> None:
+    """CPU type codes become product prefixes; unknown codes stay as they are."""
+    assert format_pcd_type(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"), [("128", "1.28"), ("010", "0.10"), ("1.28", "1.28"), ("", "")]
+)
+def test_format_firmware(raw: str, expected: str) -> None:
+    """Three-digit firmware gets its dot; other formats are kept."""
+    assert format_firmware(raw) == expected
