@@ -32,14 +32,14 @@ class SBusEntity(CoordinatorEntity[SBusDataUpdateCoordinator]):
         self._address: int = int(config[CONF_ADDRESS])
         self._attr_name = config.get(CONF_NAME) or None
         self._attr_unique_id = unique_id(
-            device_info["serial_number"], self._unique_prefix, self._address
+            device_info["identity"], self._unique_prefix, self._address
         )
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, device_info["serial_number"])},
+            identifiers={(DOMAIN, device_info["identity"])},
             name=device_info.get("product_type", "SAIA PCD"),
             manufacturer="SAIA-Burgess Controls",
-            model=device_info.get("product_type"),
-            sw_version=str(device_info.get("firmware_version")),
+            model=device_info.get("pcd_type") or "SAIA PCD",
+            sw_version=device_info.get("firmware_version"),
         )
 
     @property

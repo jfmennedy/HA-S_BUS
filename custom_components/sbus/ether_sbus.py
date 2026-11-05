@@ -139,7 +139,7 @@ class EtherSBusProtocol(SBusProtocolBase):
             self.station,
         )
 
-    async def _send_and_receive(self, pdu: bytes, data_size: int) -> tuple[int, bytes]:
+    async def _send_and_receive(self, pdu: bytes, data_size: int | None) -> tuple[int, bytes]:
         """Send a PDU wrapped in an Ether-S-Bus frame and return the reply.
 
         Retries on timeout with exponential backoff. Every attempt uses a

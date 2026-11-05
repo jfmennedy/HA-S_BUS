@@ -12,6 +12,18 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Unterstützung für Timer und Counter Entitäten
 - Diagnostics Support
 
+## [0.4.7] - 2026-11-05
+
+### Behoben
+- Firmware und PCD-Typ werden jetzt mit dem S-Bus-Befehl „Read Program
+  Version“ gelesen. Bisher wurden die Register R 600–612 als
+  „Systemregister“ ausgelesen; bei einer PCD sind das aber normale
+  Programmregister, daher zeigten die Geräteinformationen Werte wie
+  „Firmware: 0“ oder eine falsche Seriennummer.
+- Die angezeigte Seriennummer entfällt, weil S-Bus keine dokumentierte
+  Abfrage dafür bietet. Gerätekennung ist IP-Adresse, Port und Station;
+  bestehende Geräte und Entitäten werden automatisch übernommen.
+
 ## [0.4.6] - 2026-11-05
 
 ### Geändert
@@ -208,7 +220,8 @@ wurde versehentlich vor dem Merge angelegt und enthält den Stand von 0.4.2.
 - Type Hints für alle Funktionen
 - Logging und Error Handling
 
-[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.4.7...HEAD
+[0.4.7]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.7
 [0.4.6]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.6
 [0.4.5]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.5
 [0.4.4]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.4

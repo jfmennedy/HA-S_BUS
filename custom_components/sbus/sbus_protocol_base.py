@@ -23,8 +23,10 @@ import logging
 import struct
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Coroutine
 from typing import Any
 from typing import ClassVar
+from typing import TypeVar
 
 from homeassistant.exceptions import HomeAssistantError
 
@@ -32,6 +34,7 @@ from .const import ATTR_ACK
 from .const import ATTR_REQUEST
 from .const import ATTR_RESPONSE
 from .const import CMD_READ_FLAG
+from .const import CMD_READ_PROGRAM_VERSION
 from .const import CMD_READ_REGISTER
 from .const import CMD_WRITE_FLAG
 from .const import CMD_WRITE_REGISTER
@@ -43,12 +46,6 @@ from .const import MAX_FLAG_COUNT
 from .const import MAX_REGISTER_ADDRESS
 from .const import MAX_REGISTER_COUNT
 from .const import MAX_REGISTER_VALUE
-from .const import SYSREG_FIRMWARE
-from .const import SYSREG_HW_VERSION
-from .const import SYSREG_PRODUCT_TYPE_END
-from .const import SYSREG_PRODUCT_TYPE_START
-from .const import SYSREG_SERIAL_END
-from .const import SYSREG_SERIAL_START
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +55,10 @@ MAX_FLAGS_PER_TELEGRAM = 128
 ACK_DATA_SIZE = 2
 # Size of the S-Bus CRC
 CRC_SIZE = 2
+# Length of the CPU type at the start of a "Read Program Version" reply
+PCD_TYPE_LENGTH = 5
+
+_T = TypeVar("_T")
 
 
 class SBusProtocolError(HomeAssistantError):
@@ -131,15 +132,18 @@ class SBusProtocolBase(ABC):
         """Close connection to the S-Bus device."""
 
     @abstractmethod
-    async def _send_and_receive(self, pdu: bytes, data_size: int) -> tuple[int, bytes]:
+    async def _send_and_receive(
+        self, pdu: bytes, data_size: int | None
+    ) -> tuple[int, bytes]:
         """Send a request PDU and receive the reply.
 
         Args:
             pdu: Request PDU (``station, command, payload``), without
                 attribute byte, framing and CRC.
             data_size: Expected size of the reply data in bytes for a
-                successful request. Stream transports use it to know how
-                much to read; an ACK/NAK reply is always 2 bytes.
+                successful request, or None if it is not known in advance.
+                Stream transports use it to know how much to read; an
+                ACK/NAK reply is always 2 bytes.
 
         Returns:
             Tuple ``(attribute, data)`` of the validated reply, with framing
@@ -247,7 +251,7 @@ class SBusProtocolBase(ABC):
         return bytes([self.station & 0xFF, cmd & 0xFF]) + payload
 
     async def _request_data(
-        self, cmd: int, payload: bytes, data_size: int, *, locked: bool = False
+        self, cmd: int, payload: bytes, data_size: int | None, *, locked: bool = False
     ) -> bytes:
         """Send a read request and return the reply data.
 
@@ -268,7 +272,7 @@ class SBusProtocolBase(ABC):
         if attribute != ATTR_RESPONSE:
             msg = f"Invalid attribute byte: {attribute:02X}"
             raise SBusProtocolError(msg)
-        if len(data) != data_size:
+        if data_size is not None and len(data) != data_size:
             msg = f"Unexpected reply size: expected {data_size} bytes, got {len(data)}"
             raise SBusProtocolError(msg)
         return data
@@ -376,84 +380,51 @@ class SBusProtocolBase(ABC):
         payload = struct.pack("!BHBB", 1 + 2, address, 0, 1 if value else 0)
         await self._request_ack(CMD_WRITE_FLAG, payload)
 
-    async def get_device_info(self) -> dict[str, Any]:
-        """Get device information from the PCD system registers.
+    async def read_program_version(self) -> tuple[str, str]:
+        """Read PCD type and firmware version ("Read Program Version").
 
-        R 600 (firmware) must answer, otherwise the PCD counts as unreachable.
-        Product type, hardware version and serial number are optional: some
-        PCDs reject these registers (NAK), others simply don't answer. If one
-        of them times out, R 600 is read again; if that answers too, the
-        register is treated as unsupported, otherwise the timeout propagates.
-        Without a serial number the configured endpoint (address and
-        station) is used as identity.
+        The PCD answers with ASCII text: the CPU type (5 characters,
+        e.g. "D3M53") followed by the firmware version.
         """
-        firmware_version = (await self.read_registers(SYSREG_FIRMWARE, 1))[0]
+        data = await self._request_data(CMD_READ_PROGRAM_VERSION, b"", None)
+        text = data.decode("ascii", errors="ignore")
+        cpu_type = text[:PCD_TYPE_LENGTH].strip("\x00 ")
+        firmware = text[PCD_TYPE_LENGTH:].strip("\x00 ")
+        _LOGGER.debug("Program version reply %s: type %r, firmware %r", data.hex(), cpu_type, firmware)
+        return cpu_type, firmware
 
-        product_type = ""
-        hw_version = 0
-        serial_number = self.endpoint_id
+    async def get_device_info(self) -> dict[str, Any]:
+        """Identify the PCD.
 
-        async def optional(address: int, count: int) -> list[int] | None:
-            try:
-                return await self._read_optional(address, count)
-            except SBusTimeoutError:
-                # Still reachable? Then the register is just not supported.
-                await self.read_registers(SYSREG_FIRMWARE, 1)
-                _LOGGER.debug("PCD does not answer R%d, treating as unsupported", address)
-                return None
-            except SBusProtocolError as err:
-                _LOGGER.debug("PCD rejected R%d: %s", address, err)
-                return None
-
-        raw = await optional(
-            SYSREG_PRODUCT_TYPE_START,
-            SYSREG_PRODUCT_TYPE_END - SYSREG_PRODUCT_TYPE_START + 1,
-        )
-        if raw is not None:
-            product_type = (
-                b"".join(struct.pack("!I", reg) for reg in raw)
-                .decode("ascii", errors="ignore")
-                .strip("\x00 ")
-            )
-        raw = await optional(SYSREG_HW_VERSION, 1)
-        if raw is not None:
-            hw_version = raw[0]
-        raw = await optional(
-            SYSREG_SERIAL_START, SYSREG_SERIAL_END - SYSREG_SERIAL_START + 1
-        )
-        if raw is not None:
-            serial_number = f"{raw[0]:08X}{raw[1]:08X}"
-        else:
-            _LOGGER.info(
-                "PCD provides no serial number, using %s as identity", serial_number
-            )
+        PCD type and firmware come from the "Read Program Version" command.
+        If the PCD doesn't support it, a register read checks that the PCD
+        answers at all; only if that fails too the PCD counts as
+        unreachable. S-Bus offers no documented way to read a serial
+        number, so the configured endpoint (address and station) is the
+        device identity.
+        """
+        cpu_type = ""
+        firmware = ""
+        try:
+            cpu_type, firmware = await self._single_attempt(self.read_program_version())
+        except SBusProtocolError as err:
+            _LOGGER.debug("PCD does not answer Read Program Version: %s", err)
+            await self.read_registers(0, 1)  # reachable at all?
 
         return {
-            "firmware_version": firmware_version,
-            "product_type": product_type or "SAIA PCD",
-            "hw_version": hw_version,
-            "serial_number": serial_number,
-            "firmware_version_str": self._format_version(firmware_version),
-            "hw_version_str": self._format_version(hw_version),
+            "identity": self.endpoint_id,
+            "product_type": "SAIA PCD",
+            "pcd_type": cpu_type or None,
+            "firmware_version": firmware or None,
         }
 
-    async def _read_optional(self, address: int, count: int) -> list[int]:
-        """Read registers that may not exist, without the usual retries."""
+    async def _single_attempt(self, request: Coroutine[Any, Any, _T]) -> _T:
+        """Run a request without the transport's retries (for optional data)."""
         retries = getattr(self, "_max_retries", None)
         if retries is None:
-            return await self.read_registers(address, count)
+            return await request
         self._max_retries = 1
         try:
-            return await self.read_registers(address, count)
+            return await request
         finally:
             self._max_retries = retries
-
-    @staticmethod
-    def _format_version(version: int) -> str:
-        """Format version number to readable string (Major.Minor.Patch)."""
-        if version == 0:
-            return "Unknown"
-        major = (version >> 16) & 0xFF
-        minor = (version >> 8) & 0xFF
-        patch = version & 0xFF
-        return f"{major}.{minor}.{patch}"

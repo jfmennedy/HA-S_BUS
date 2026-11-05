@@ -27,7 +27,7 @@ REGISTER = {
 
 @pytest.fixture
 async def silent_serial_pcd(socket_enabled):  # noqa: ARG001
-    """Fake PCD that answers nothing for the serial number registers."""
+    """Fake PCD (formerly: one that ignores the old serial number registers)."""
     loop = asyncio.get_running_loop()
     transport, pcd = await loop.create_datagram_endpoint(
         FakePCD, local_addr=("127.0.0.1", 0)
@@ -71,30 +71,35 @@ async def test_setup_when_serial_registers_unanswered(
         {(DOMAIN, f"127.0.0.1:{port}:{STATION}")}
     )
     assert device is not None
-    assert device.model == "PCD3.M5540"
+    assert device.model == "D3M53"
+    assert device.sw_version == "1.28"
+    assert device.serial_number is None
 
 
-async def test_migrates_from_unknown_identity(
+@pytest.mark.parametrize("old_identity", ["UNKNOWN", "0000000000000002"])
+async def test_migrates_from_old_identity(
     hass,
     enable_custom_integrations,  # noqa: ARG001
     silent_serial_pcd,
+    old_identity: str,
 ) -> None:
-    """Entities and device created with "UNKNOWN" keep entity id and history."""
+    """Entities and device from older versions keep entity id and history."""
     _pcd, port = silent_serial_pcd
-    entry = _entry(port, "UNKNOWN")
+    entry = _entry(port, old_identity)
     entry.add_to_hass(hass)
 
     device_registry = dr.async_get(hass)
     old_device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, "UNKNOWN")},
+        identifiers={(DOMAIN, old_identity)},
         name="PCD3.M5360",
+        serial_number=old_identity,
     )
     entity_registry = er.async_get(hass)
     old_entity = entity_registry.async_get_or_create(
         "sensor",
         DOMAIN,
-        "UNKNOWN_register_3187",
+        f"{old_identity}_register_3187",
         config_entry=entry,
         device_id=old_device.id,
         suggested_object_id="pcd3_m5360_pufferspeicher_oben",
@@ -117,6 +122,8 @@ async def test_migrates_from_unknown_identity(
     devices = dr.async_entries_for_config_entry(device_registry, entry.entry_id)
     assert [d.id for d in devices] == [old_device.id]
     assert (DOMAIN, identity) in devices[0].identifiers
+    assert devices[0].serial_number is None
+    assert devices[0].sw_version == "1.28"
 
 
 async def test_setup_with_pcd_using_other_header_values(
