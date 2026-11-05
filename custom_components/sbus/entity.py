@@ -9,7 +9,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_ADDRESS
 from .const import CONF_NAME
+from .const import CONF_OPTIONS
 from .const import CONF_SYMBOL
+from .const import CONF_WRITABLE
 from .const import DOMAIN
 from .coordinator import SBusDataUpdateCoordinator
 
@@ -81,7 +83,22 @@ class SBusEntity(CoordinatorEntity[SBusDataUpdateCoordinator]):
             attributes["symbol"] = symbol
         if self._description:
             attributes["description"] = self._description
+        texts = value_texts(self._config)
+        if texts and self._raw is not None and self._data_key == "flags":
+            attributes["state_text"] = texts.get(int(self._raw))
         return attributes
+
+
+def value_texts(config: dict[str, Any]) -> dict[int, str]:
+    """Value texts of a data point from the DDC Suite library, {1: "Auto"}."""
+    return {int(value): str(text) for value, text in config.get(CONF_OPTIONS) or []}
+
+
+def register_kind(config: dict[str, Any]) -> str:
+    """Unique id kind (and platform) of a register entry."""
+    if not config.get(CONF_WRITABLE):
+        return "register"
+    return "register_select" if config.get(CONF_OPTIONS) else "register_number"
 
 
 def part_identifier(identity: str, part: str) -> str:

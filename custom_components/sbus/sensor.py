@@ -19,6 +19,7 @@ from .datapoints import decimals_for_factor
 from .datapoints import get_registers
 from .datapoints import unit_classes
 from .entity import SBusEntity
+from .entity import value_texts
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -59,6 +60,14 @@ class SBusRegisterSensor(SBusEntity, SensorEntity):
         self._data_type: str = config.get(CONF_DATA_TYPE) or DATA_TYPE_UNSIGNED
         self._factor = float(config.get(CONF_FACTOR) or 1.0)
         unit = config.get(CONF_UNIT) or None
+        self._texts = value_texts(config)
+        if self._texts:
+            # Selection value with texts from the DDC Suite library: text state.
+            # Values missing in the library are shown as number, not hidden.
+            self._attr_native_unit_of_measurement = None
+            self._attr_device_class = None
+            self._attr_state_class = None
+            return
         self._attr_native_unit_of_measurement = unit
         self._attr_device_class, self._attr_state_class = unit_classes(unit)
         if self._data_type == DATA_TYPE_FLOAT:
@@ -69,11 +78,14 @@ class SBusRegisterSensor(SBusEntity, SensorEntity):
             self._attr_suggested_display_precision = decimals_for_factor(self._factor)
 
     @property
-    def native_value(self) -> float | int | None:
-        """Return the converted register value."""
+    def native_value(self) -> float | int | str | None:
+        """Return the converted register value (or its text)."""
         raw = self._raw
         if raw is None:
             return None
+        if self._texts:
+            value = int(convert_register(raw, self._data_type, 1))
+            return self._texts.get(value, str(value))
         return convert_register(raw, self._data_type, self._factor)
 
     @property

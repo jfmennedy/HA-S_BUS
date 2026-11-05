@@ -182,10 +182,11 @@
       },
       "import_project": {
         "title": "Import PG5 project",
-        "description": "Upload the Fupla file (e.g. HKLS.fup) and the linker map (Lst/<project>.map) of the PG5 project that runs on the PCD. Build the project first so the map is current. Only the evaluated data point list is stored. {error}",
+        "description": "Upload the Fupla file (e.g. HKLS.fup) and the linker map (Lst/<project>.map) of the PG5 project that runs on the PCD. Build the project first so the map is current. Only the evaluated data point list is stored. Optional: the DDC Suite library (ZIP of the DDC27_FAM_*.idx files from the PG5 library folder) adds readable names and value texts (e.g. Auto / Aus / Ein); without it the texts of the last import are kept. {error}",
         "data": {
           "fup": "Fupla file (.fup)",
-          "map": "Linker map (.map)"
+          "map": "Linker map (.map)",
+          "library": "DDC Suite library (ZIP with .idx files, optional)"
         }
       },
       "import_done": {
@@ -220,7 +221,8 @@
       "address_exists": "This address is already configured.",
       "invalid_project": "The files could not be read as PG5 project.",
       "upload_failed": "The uploaded files could not be read.",
-      "empty_project": "No registers or flags with an address found. Is the map from the same build as the Fupla file?"
+      "empty_project": "No registers or flags with an address found. Is the map from the same build as the Fupla file?",
+      "invalid_library": "The library could not be read. Upload a ZIP with the .idx files or a single .idx file."
     }
   },
   "services": {

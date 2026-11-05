@@ -40,6 +40,7 @@ from .const import SERVICE_WRITE_REGISTER
 from .coordinator import SBusDataUpdateCoordinator
 from .datapoints import get_flags
 from .datapoints import get_registers
+from .entity import register_kind
 from .entity import unique_id
 from .project import async_load_project
 from .project import async_remove_project
@@ -54,6 +55,7 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.SWITCH,
     Platform.NUMBER,
+    Platform.SELECT,
 ]
 
 
@@ -249,7 +251,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-_UNIQUE_ID_RE = re.compile(r"^(?P<serial>.+)_(?P<kind>register_number|register|flag_switch|flag)_(?P<address>\d+)$")
+_UNIQUE_ID_RE = re.compile(r"^(?P<serial>.+)_(?P<kind>register_select|register_number|register|flag_switch|flag)_(?P<address>\d+)$")
 
 
 def _migrate_identity(hass: HomeAssistant, entry: ConfigEntry, serial: str) -> None:
@@ -311,11 +313,7 @@ def _remove_stale_entities(
 ) -> None:
     """Remove entities whose data point is no longer configured."""
     expected = {
-        unique_id(
-            serial,
-            "register_number" if r.get(CONF_WRITABLE) else "register",
-            int(r[CONF_ADDRESS]),
-        )
+        unique_id(serial, register_kind(r), int(r[CONF_ADDRESS]))
         for r in registers
     }
     expected |= {

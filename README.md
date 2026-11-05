@@ -137,9 +137,11 @@ Statt Adressen einzutippen, kannst du die Datenpunkte direkt aus dem
 PG5-Projekt wählen, das auf der PCD läuft:
 
 1. Projekt in PG5 bauen (damit die Adressen aktuell sind).
-2. **Konfigurieren → PG5-Projekt importieren** und zwei Dateien hochladen:
+2. **Konfigurieren → PG5-Projekt importieren** und die Dateien hochladen:
    - die Fupla-Datei, z. B. `HKLS.fup`
    - die Linker-Map aus dem Ordner `Lst`, z. B. `Lst/Mardelle5.map`
+   - optional die **DDC-Suite-Bibliothek**: ein ZIP mit den Dateien
+     `DDC27_FAM_*_de.idx` aus dem Bibliotheksordner von PG5 (siehe unten)
 3. **Datenpunkte aus Projekt wählen**: Anlage wählen (z. B. „S01“) und dann
    - **ganze Anlagenteile** ankreuzen, z. B. „S01 Zirk. UWP – 14 (3 ✎)“:
      alle Datenpunkte des Anlagenteils werden übernommen, oder
@@ -163,6 +165,25 @@ Name, Faktor (aus dem Anzeigeformat, z. B. eine Nachkommastelle → 0,1),
 Einheit und Wertebereich werden aus dem Projekt übernommen. Einstellbare
 Werte (✎) werden zu Zahlenfeldern bzw. Schaltern, Anzeigewerte zu Sensoren
 bzw. Binärsensoren.
+
+#### Lesbare Namen und Werte-Texte (DDC-Suite-Bibliothek)
+
+Mit der Bibliothek übernimmt die Integration die Bezeichnungen und
+Auswahltexte, die PG5 im Einstellfenster der FBox anzeigt:
+
+| Datenpunkt | Wird zu | Beispiel |
+|---|---|---|
+| Einstellbarer Auswahlwert | Auswahlfeld | „HMI Niederprior“: Auto / Aus / Ein |
+| Angezeigter Auswahlwert | Sensor mit Text | „HMI Höherprior“: Auto |
+| Meldung | Binärsensor, Attribut `state_text` | „Motorstörungen“: keine / STÖRUNG |
+| Übrige Werte | lesbarer Name | „Rückmeldung“ statt `Betrieb` |
+
+Werte, die in der Bibliothek nicht vorkommen, werden als Zahl angezeigt.
+Gespeichert werden nur die Texte der verwendeten FBoxen, nicht das ZIP. Lädst
+du beim nächsten Import keine Bibliothek hoch, bleiben die bisherigen Texte
+erhalten. Die `.idx`-Dateien liegen im PG5-Bibliotheksordner der DDC Suite
+(z. B. `…\Libs\…\DDC Suite 2.7\`); am besten alle `DDC27_FAM_*_de.idx`
+als ZIP packen, damit die Umlaute erhalten bleiben.
 
 Ändert sich das Programm und PG5 vergibt neue Adressen, importierst du die
 Dateien einfach erneut: Die gewählten Datenpunkte werden über ihren

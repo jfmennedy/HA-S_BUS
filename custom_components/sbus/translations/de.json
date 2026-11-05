@@ -85,10 +85,11 @@
       },
       "import_project": {
         "title": "PG5-Projekt importieren",
-        "description": "Lade die Fupla-Datei (z. B. HKLS.fup) und die Linker-Map (Lst/<Projekt>.map) des PG5-Projekts hoch, das auf der PCD läuft. Vorher bauen, damit die Map aktuell ist. Gespeichert wird nur die ausgewertete Datenpunktliste. {error}",
+        "description": "Lade die Fupla-Datei (z. B. HKLS.fup) und die Linker-Map (Lst/<Projekt>.map) des PG5-Projekts hoch, das auf der PCD läuft. Vorher bauen, damit die Map aktuell ist. Gespeichert wird nur die ausgewertete Datenpunktliste. Optional: Die DDC-Suite-Bibliothek (ZIP der DDC27_FAM_*.idx-Dateien aus dem PG5-Bibliotheksordner) liefert lesbare Bezeichnungen und Werte-Texte (z. B. Auto / Aus / Ein); ohne sie bleiben die Texte des letzten Imports erhalten. {error}",
         "data": {
           "fup": "Fupla-Datei (.fup)",
-          "map": "Linker-Map (.map)"
+          "map": "Linker-Map (.map)",
+          "library": "DDC-Suite-Bibliothek (ZIP mit .idx-Dateien, optional)"
         }
       },
       "import_done": {
@@ -123,7 +124,8 @@
       "address_exists": "Diese Adresse ist bereits konfiguriert.",
       "invalid_project": "Die Dateien konnten nicht als PG5-Projekt gelesen werden.",
       "upload_failed": "Die hochgeladenen Dateien konnten nicht gelesen werden.",
-      "empty_project": "Keine Register oder Flags mit Adresse gefunden. Stammt die Map aus demselben Build wie die Fupla-Datei?"
+      "empty_project": "Keine Register oder Flags mit Adresse gefunden. Stammt die Map aus demselben Build wie die Fupla-Datei?",
+      "invalid_library": "Die Bibliothek konnte nicht gelesen werden. Bitte ein ZIP mit den .idx-Dateien oder eine einzelne .idx-Datei hochladen."
     }
   },
   "selector": {

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import logging
+import zipfile
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -43,6 +45,7 @@ from .pg5 import OPERATING_LEVELS
 from .pg5 import DataPoint
 from .pg5 import PG5ParseError
 from .pg5 import decode
+from .pg5 import merge_libraries
 from .pg5 import parse_project
 from .project import apply_selection
 from .project import async_load_project
@@ -895,12 +898,21 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         placeholders = {"error": ""}
         if user_input is not None:
             try:
-                fup, map_ = await self.hass.async_add_executor_job(
-                    _read_uploads, self.hass, user_input["fup"], user_input["map"]
+                fup, map_, library_texts = await self.hass.async_add_executor_job(
+                    _read_uploads,
+                    self.hass,
+                    user_input["fup"],
+                    user_input["map"],
+                    user_input.get("library"),
                 )
+                library = merge_libraries(library_texts) if library_texts else None
+                if library_texts and not library:
+                    raise PG5ParseError("No FBox entries in the library files")  # noqa: TRY301
                 points = await self.hass.async_add_executor_job(
-                    parse_project, fup, map_
+                    parse_project, fup, map_, library
                 )
+            except zipfile.BadZipFile:
+                errors["base"] = "invalid_library"
             except PG5ParseError as err:
                 errors["base"] = "invalid_project"
                 placeholders["error"] = str(err)
@@ -923,6 +935,9 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
                     vol.Required("map"): selector.FileSelector(
                         selector.FileSelectorConfig(accept=".map")
                     ),
+                    vol.Optional("library"): selector.FileSelector(
+                        selector.FileSelectorConfig(accept=".zip,.idx")
+                    ),
                 }
             ),
             errors=errors,
@@ -932,6 +947,16 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
     async def _finish_import(self, points: list[DataPoint]) -> FlowResult:
         """Store the project and align configured data points with it."""
         data = [p.as_dict() for p in points]
+        if not any(p["title"] or p["options"] for p in data):
+            # No library uploaded this time: keep texts from the last import
+            previous = await async_load_project(self.hass, self.config_entry.entry_id)
+            texts = {
+                p["symbol"]: (p.get("title"), p.get("options"))
+                for p in (previous or {}).get("points", [])
+            }
+            for point in data:
+                if point["symbol"] in texts:
+                    point["title"], point["options"] = texts[point["symbol"]]
         await async_save_project(
             self.hass, self.config_entry.entry_id, "PG5 project", data
         )
@@ -942,7 +967,7 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         migrate_entity_addresses(
             self.hass,
             self.config_entry.entry_id,
-            {"register": moved_r, "register_number": moved_r,
+            {"register": moved_r, "register_number": moved_r, "register_select": moved_r,
              "flag": moved_f, "flag_switch": moved_f},
         )
         groups = sorted({p.group for p in points})
@@ -1140,13 +1165,31 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         )
 
 
-def _read_uploads(hass: HomeAssistant, fup_id: str, map_id: str) -> tuple[str, str]:
-    """Read the uploaded files (runs in the executor); they are deleted afterwards."""
+def _read_uploads(
+    hass: HomeAssistant, fup_id: str, map_id: str, library_id: str | None
+) -> tuple[str, str, list[str]]:
+    """Read the uploaded files (runs in the executor); they are deleted afterwards.
+
+    The library is a ZIP with the DDC Suite .idx files or a single .idx.
+    """
     with process_uploaded_file(hass, fup_id) as fup_path:
         fup = decode(fup_path.read_bytes())
     with process_uploaded_file(hass, map_id) as map_path:
         map_ = decode(map_path.read_bytes())
-    return fup, map_
+    library: list[str] = []
+    if library_id:
+        with process_uploaded_file(hass, library_id) as library_path:
+            data = library_path.read_bytes()
+        if data[:2] == b"PK":
+            with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                library = [
+                    decode(archive.read(name))
+                    for name in archive.namelist()
+                    if name.lower().endswith(".idx")
+                ]
+        else:
+            library = [decode(data)]
+    return fup, map_, library
 
 
 def _point_label(point: dict[str, Any]) -> str:
@@ -1155,7 +1198,7 @@ def _point_label(point: dict[str, Any]) -> str:
     if len(description) > 70:  # noqa: PLR2004
         description = description[:69] + "…"
     writable = " ✎" if point["writable"] else ""
-    label = f"{point['label']} – {point['variable']}"
+    label = f"{point['label']} – {point.get('title') or point['variable']}"
     if description:
         label += f": {description}"
     return f"{label} ({point['kind']} {point['address']}){writable}"
