@@ -205,7 +205,10 @@ Diese Integration implementiert alle drei SAIA S-Bus Protokoll-Varianten:
 
 Beim Einrichten fragt die Integration die PCD mit dem S-Bus-Befehl
 „Read Program Version“ (`0x20`) nach CPU-Typ und Firmware-Version. Beides
-erscheint in den Geräteinformationen als Modell und Firmware. Kennt eine PCD
+erscheint in den Geräteinformationen als Modell und Firmware, z. B.
+„PCD3.M53“ und „1.28“. Die PCD liefert dabei nur die CPU-Familie (nicht die
+vollständige Artikelnummer wie PCD3.M5360) und nur Haupt- und Nebenversion
+der Firmware (nicht 1.28.51). Kennt eine PCD
 den Befehl nicht, prüft ein Registerzugriff, ob sie erreichbar ist.
 
 Eine Seriennummer lässt sich über S-Bus nicht in dokumentierter Form

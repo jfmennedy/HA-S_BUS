@@ -57,6 +57,8 @@ ACK_DATA_SIZE = 2
 CRC_SIZE = 2
 # Length of the CPU type at the start of a "Read Program Version" reply
 PCD_TYPE_LENGTH = 5
+# Firmware is sent as three digits without dots ("128" = 1.28)
+FIRMWARE_DIGITS = 3
 
 _T = TypeVar("_T")
 
@@ -79,6 +81,24 @@ class SBusNakError(SBusProtocolError):
 
 class SBusConnectionError(SBusProtocolError):
     """The transport connection could not be established."""
+
+
+def format_pcd_type(raw: str) -> str:
+    """Turn the CPU type code into the familiar product prefix.
+
+    "D3M53" -> "PCD3.M53" (a PCD3.M53xx). The code identifies the CPU
+    family only, the last digits of the article number are not part of it.
+    """
+    if len(raw) == PCD_TYPE_LENGTH and raw[0] == "D" and raw[1].isdigit():
+        return f"PCD{raw[1]}.{raw[2:]}"
+    return raw
+
+
+def format_firmware(raw: str) -> str:
+    """Format the firmware version: "128" -> "1.28"; dotted values stay."""
+    if len(raw) == FIRMWARE_DIGITS and raw.isdigit():
+        return f"{raw[0]}.{raw[1:]}"
+    return raw
 
 
 def _build_crc_table() -> list[int]:
@@ -384,12 +404,13 @@ class SBusProtocolBase(ABC):
         """Read PCD type and firmware version ("Read Program Version").
 
         The PCD answers with ASCII text: the CPU type (5 characters,
-        e.g. "D3M53") followed by the firmware version.
+        e.g. "D3M53") followed by the firmware version (e.g. "128").
+        Returned formatted as ("PCD3.M53", "1.28").
         """
         data = await self._request_data(CMD_READ_PROGRAM_VERSION, b"", None)
         text = data.decode("ascii", errors="ignore")
-        cpu_type = text[:PCD_TYPE_LENGTH].strip("\x00 ")
-        firmware = text[PCD_TYPE_LENGTH:].strip("\x00 ")
+        cpu_type = format_pcd_type(text[:PCD_TYPE_LENGTH].strip("\x00 "))
+        firmware = format_firmware(text[PCD_TYPE_LENGTH:].strip("\x00 "))
         _LOGGER.debug("Program version reply %s: type %r, firmware %r", data.hex(), cpu_type, firmware)
         return cpu_type, firmware
 

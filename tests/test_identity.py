@@ -71,7 +71,7 @@ async def test_setup_when_serial_registers_unanswered(
         {(DOMAIN, f"127.0.0.1:{port}:{STATION}")}
     )
     assert device is not None
-    assert device.model == "D3M53"
+    assert device.model == "PCD3.M53"
     assert device.sw_version == "1.28"
     assert device.serial_number is None
 
