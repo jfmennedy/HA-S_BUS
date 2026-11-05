@@ -10,6 +10,7 @@ from homeassistant.components.sensor import SensorEntity
 from .const import CONF_DATA_TYPE
 from .const import CONF_FACTOR
 from .const import CONF_UNIT
+from .const import CONF_WRITABLE
 from .const import DATA_TYPE_FLOAT
 from .const import DATA_TYPE_UNSIGNED
 from .const import DOMAIN
@@ -37,6 +38,7 @@ async def async_setup_entry(
     async_add_entities(
         SBusRegisterSensor(data["coordinator"], data["device_info"], config)
         for config in get_registers(entry)
+        if not config.get(CONF_WRITABLE)  # writable registers are number entities
     )
 
 

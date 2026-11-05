@@ -106,7 +106,9 @@
           "edit_register": "Edit register",
           "remove_registers": "Remove registers",
           "add_flag": "Add flag (binary sensor / switch)",
-          "remove_flags": "Remove flags"
+          "remove_flags": "Remove flags",
+          "import_project": "Import PG5 project",
+          "select_group": "Choose data points from project"
         }
       },
       "settings": {
@@ -126,7 +128,8 @@
           "name": "Name",
           "data_type": "Data type",
           "factor": "Factor",
-          "unit": "Unit"
+          "unit": "Unit",
+          "writable": "Writable (number entity)"
         },
         "data_description": {
           "factor": "e.g. 0.1 if the PCD stores 32.5 °C as 325",
@@ -147,7 +150,8 @@
           "name": "Name",
           "data_type": "Data type",
           "factor": "Factor",
-          "unit": "Unit"
+          "unit": "Unit",
+          "writable": "Writable (number entity)"
         },
         "data_description": {
           "factor": "e.g. 0.1 if the PCD stores 32.5 °C as 325"
@@ -175,10 +179,40 @@
         "data": {
           "flags": "Flags to remove"
         }
+      },
+      "import_project": {
+        "title": "Import PG5 project",
+        "description": "Upload the Fupla file (e.g. HKLS.fup) and the linker map (Lst/<project>.map) of the PG5 project that runs on the PCD. Build the project first so the map is current. Only the evaluated data point list is stored. {error}",
+        "data": {
+          "fup": "Fupla file (.fup)",
+          "map": "Linker map (.map)"
+        }
+      },
+      "import_done": {
+        "title": "Project imported",
+        "description": "{points} data points found in the plants {groups}.\n\nConfigured data points moved to a new address: {moved}\nNo longer in the project: {missing}\n\nThen choose data points via “Choose data points from project”."
+      },
+      "select_group": {
+        "title": "Choose plant",
+        "description": "Numbers: operating values / all data points.",
+        "data": {
+          "group": "Plant",
+          "parameters": "Also show settings and commissioning parameters"
+        }
+      },
+      "select_points": {
+        "title": "Data points of {group}",
+        "description": "{count} data points. Ticked ones become entities; ✎ = adjustable (number entity or switch). Removing the tick removes the entity.",
+        "data": {
+          "points": "Data points"
+        }
       }
     },
     "error": {
-      "address_exists": "This address is already configured."
+      "address_exists": "This address is already configured.",
+      "invalid_project": "The files could not be read as PG5 project.",
+      "upload_failed": "The uploaded files could not be read.",
+      "empty_project": "No registers or flags with an address found. Is the map from the same build as the Fupla file?"
     }
   },
   "services": {

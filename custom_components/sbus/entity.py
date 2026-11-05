@@ -9,6 +9,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import CONF_ADDRESS
 from .const import CONF_NAME
+from .const import CONF_SYMBOL
 from .const import DOMAIN
 from .coordinator import SBusDataUpdateCoordinator
 
@@ -57,7 +58,10 @@ class SBusEntity(CoordinatorEntity[SBusDataUpdateCoordinator]):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra attributes."""
-        return {"address": self._address, "type": self._data_key[:-1]}
+        attributes = {"address": self._address, "type": self._data_key[:-1]}
+        if symbol := self._config.get(CONF_SYMBOL):
+            attributes["symbol"] = symbol
+        return attributes
 
 
 def unique_id(serial: str, prefix: str, address: int) -> str:

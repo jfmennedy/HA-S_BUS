@@ -41,12 +41,18 @@ from .coordinator import SBusDataUpdateCoordinator
 from .datapoints import get_flags
 from .datapoints import get_registers
 from .entity import unique_id
+from .project import async_remove_project
 from .sbus_protocol import SBusProtocolError
 from .sbus_protocol import create_sbus_protocol
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.SWITCH]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.SWITCH,
+    Platform.NUMBER,
+]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -68,7 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         device_info = await protocol.get_device_info()
 
         _LOGGER.info(
-            "Connected to S-Bus device: %s (S/N: %s) via %s",
+            "Connected to S-Bus device: %s (firmware %s) via %s",
             device_info.get("product_type", "Unknown"),
             device_info.get("firmware_version") or "unknown firmware",
             entry.data.get("protocol_type", "Ether-S-Bus"),
@@ -238,7 +244,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-_UNIQUE_ID_RE = re.compile(r"^(?P<serial>.+)_(?P<kind>register|flag_switch|flag)_(?P<address>\d+)$")
+_UNIQUE_ID_RE = re.compile(r"^(?P<serial>.+)_(?P<kind>register_number|register|flag_switch|flag)_(?P<address>\d+)$")
 
 
 def _migrate_identity(hass: HomeAssistant, entry: ConfigEntry, serial: str) -> None:
@@ -297,7 +303,14 @@ def _remove_stale_entities(
     flags: list[dict],
 ) -> None:
     """Remove entities whose data point is no longer configured."""
-    expected = {unique_id(serial, "register", int(r[CONF_ADDRESS])) for r in registers}
+    expected = {
+        unique_id(
+            serial,
+            "register_number" if r.get(CONF_WRITABLE) else "register",
+            int(r[CONF_ADDRESS]),
+        )
+        for r in registers
+    }
     expected |= {
         unique_id(
             serial,
@@ -315,6 +328,11 @@ def _remove_stale_entities(
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload the entry when the options (data points) change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Delete the stored PG5 project when the integration entry is removed."""
+    await async_remove_project(hass, entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

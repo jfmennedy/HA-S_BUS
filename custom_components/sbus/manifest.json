@@ -3,10 +3,11 @@
   "name": "SAIA S-Bus",
   "codeowners": ["@jfmennedy"],
   "config_flow": true,
+  "dependencies": ["file_upload"],
   "documentation": "https://github.com/jfmennedy/HA-S_BUS",
   "issue_tracker": "https://github.com/jfmennedy/HA-S_BUS/issues",
   "requirements": ["serialx>=1.0.0"],
-  "version": "0.4.8",
+  "version": "0.5.0",
   "iot_class": "local_push",
   "integration_type": "hub",
   "zeroconf": [

@@ -1,0 +1,42 @@
+[FILEHEADER]
+Version=530
+Compiler=310
+FuplaVersion=V2.3.196
+CodePage=1252
+[BLOCK]
+BlockSym=1037
+[_DDC_ANSENSOR270 4359]
+Fam=DDC27_FAM_ANALOG
+Face=Sensor
+In=Inp_I Rely_B 
+Out=Value_I AlaHigh_B AlaLow_B 
+S=SmGwHi_F=11 Messwert_R=10 GwHi_R=12 FiltZeit_R=13 
+av0=c CS 
+av1=a Descript %T ="":"Speicher Temp. 2 " \wax=0 
+av6=a MessTyp 0 %s =2 {2,3} \wax=0 
+av8=v Messwert 0 %1p 
+av18=a FiltZeit 0 %1p =10 {0..600} \wax=0 
+av29=a GwHi 0 %1p =1000 {-20000000..20000000} \wax=0 
+av30=v SmGwHi 0 %s 
+av40=a gUnitL %s =10 {0,1,10,11,20} \wax=0 
+Variables0=SmGwHi SmGwOben;(1) Meldung oberer Grenzwert wurde überschritten
+Variables2=Messwert Istwert;(1) Physikalischer Wert des Sensors = Ausgang "Iw"
+uName=S01_Speicher_Temp2
+[_DDC_PLANT270 4400]
+Fam=DDC27_FAM_SYSTEMS
+S=Freig_F=20 Soll_R=21 Uhr_R=22 
+av1=a Descript %T ="":"Anlage " \wax=0 
+av2=a Freig 0 %s =1:0 {0,1} 
+av3=a Soll 0 %1p =200 {0..900} 
+av4=a Uhr 0 %1H =1200:700 {0..2359} \wax=0 
+uName=H01_Anlage
+[RESOURCES]
+HSYM1=10	S01.Speicher.Temp2.Fühler.Istwert	R		1	-1	(1) Physikalischer Wert des Sensors = Ausgang "Iw"			0	0
+HSYM2=11	S01.Speicher.Temp2.Fühler.SmGwOben	F		1	-1	(1) Meldung oberer Grenzwert wurde überschritten			0	0
+HSYM3=12	S01.Speicher.Temp2.Fühler.GwOben	R		1	-1	(4) Oberer Grenzwert			0	0
+HSYM4=13	S01.Speicher.Temp2.Fühler.FilterZeit	R		1	-1	(5) Abtastzeit des Sensorwertes zur Filterung			0	0
+HSYM5=20	H01.Anlage.Freigabe	F		1	-1	(3) Freigabe der Anlage			0	0
+HSYM6=21	H01.Anlage.Sollwert	R		1	-1	(2) Resultierender Sollwert			0	0
+HSYM7=22	H01.Anlage.UhrEin	R		1	-1	(4) Einschaltzeit			0	0
+HSYM8=30	PCD.Alarm.Liste	R		1	-1	(1) Not in the map			0	0
+HSYM9=31	H01.Anlage.Info	TEXT		1	-1	(1) Text, not supported			0	0
