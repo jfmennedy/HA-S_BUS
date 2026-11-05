@@ -19,6 +19,7 @@ from .const import CONF_FACTOR
 from .const import CONF_MAX
 from .const import CONF_MIN
 from .const import CONF_NAME
+from .const import CONF_OPTIONS
 from .const import CONF_SYMBOL
 from .const import CONF_UNIT
 from .const import CONF_WRITABLE
@@ -60,23 +61,27 @@ def point_to_config(point: dict[str, Any]) -> dict[str, Any]:
     """Build the option entry for a project data point."""
     name = f"{point['group']} {point['label']} {point['variable']}".strip()
     if point["kind"] == KIND_FLAG:
-        return {
+        config = {
             CONF_ADDRESS: point["address"],
             CONF_NAME: name,
             CONF_WRITABLE: point["writable"],
             CONF_SYMBOL: point["symbol"],
         }
-    return {
-        CONF_ADDRESS: point["address"],
-        CONF_NAME: name,
-        CONF_DATA_TYPE: DATA_TYPE_SIGNED,
-        CONF_FACTOR: point["factor"],
-        CONF_UNIT: point["unit"],
-        CONF_WRITABLE: point["writable"],
-        CONF_MIN: point["minimum"],
-        CONF_MAX: point["maximum"],
-        CONF_SYMBOL: point["symbol"],
-    }
+    else:
+        config = {
+            CONF_ADDRESS: point["address"],
+            CONF_NAME: name,
+            CONF_DATA_TYPE: DATA_TYPE_SIGNED,
+            CONF_FACTOR: point["factor"],
+            CONF_UNIT: point["unit"],
+            CONF_WRITABLE: point["writable"],
+            CONF_MIN: point["minimum"],
+            CONF_MAX: point["maximum"],
+            CONF_SYMBOL: point["symbol"],
+        }
+    if point.get("options"):
+        config[CONF_OPTIONS] = point["options"]
+    return config
 
 
 def remap_to_project(
@@ -101,6 +106,7 @@ def remap_to_project(
     for original in configs:
         config = dict(original)
         symbol = config.get(CONF_SYMBOL)
+        point = None
         if symbol:
             point = by_symbol.get(symbol)
             if point is None:
@@ -110,6 +116,12 @@ def remap_to_project(
                 config[CONF_ADDRESS] = point["address"]
         elif (point := by_address.get(config[CONF_ADDRESS])) is not None:
             config[CONF_SYMBOL] = point["symbol"]
+        if point is not None:
+            # Value texts follow the (newly imported) library
+            if point.get("options"):
+                config[CONF_OPTIONS] = point["options"]
+            else:
+                config.pop(CONF_OPTIONS, None)
         updated.append(config)
     return updated, moved, missing
 
@@ -150,7 +162,7 @@ def kind_of(point: dict[str, Any]) -> str:
 
 
 _UNIQUE_ID = re.compile(
-    r"^(?P<identity>.+?)_(?P<kind>register_number|register|flag_switch|flag)"
+    r"^(?P<identity>.+?)_(?P<kind>register_select|register_number|register|flag_switch|flag)"
     r"_(?P<address>\d+)$"
 )
 
@@ -189,6 +201,37 @@ def _normalize(text: str) -> str:
     return re.sub(r"[^0-9a-z]", "", text.lower())
 
 
+def _short_names(points: list[dict[str, Any]]) -> dict[str, str]:
+    """Entity names within a plant part.
+
+    The readable title from the DDC Suite library ("Rückmeldung"), else the
+    DDC variable ("Betrieb"). Titles used twice get the variable added
+    ("Grenzwerte Meldung (SmGwOben)"), variables used twice the FBox part
+    of the symbol ("Steuerung.Sperre").
+    """
+
+    def counted(values: list[str]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for value in values:
+            counts[value] = counts.get(value, 0) + 1
+        return counts
+
+    variables = counted([p["variable"] for p in points])
+    names: dict[str, str] = {}
+    for p in points:
+        variable = p["variable"]
+        if variables[variable] > 1:
+            variable = ".".join(p["symbol"].split(".")[-2:])
+        names[p["symbol"]] = variable
+    titles = counted([p.get("title") or "" for p in points])
+    for p in points:
+        title = p.get("title")
+        if title:
+            unique = titles[title] == 1
+            names[p["symbol"]] = title if unique else f"{title} ({names[p['symbol']]})"
+    return names
+
+
 def plant_parts(points: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Group project points into plant parts (one HA device each).
 
@@ -217,13 +260,9 @@ def plant_parts(points: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         types = [p["fbox_type"] for p in with_fbox]
         model = max(set(types), key=types.count) if types else "DDC Suite"
         group = part_points[0]["group"]
-        counts: dict[str, int] = {}
+        names = _short_names(part_points)
         for p in part_points:
-            counts[p["variable"]] = counts.get(p["variable"], 0) + 1
-        for p in part_points:
-            short = p["variable"]
-            if counts[short] > 1:  # e.g. "Sperre" in two FBoxes of the part
-                short = ".".join(p["symbol"].split(".")[-2:])
+            short = names[p["symbol"]]
             info[p["symbol"]] = {
                 "part": key,
                 "device_name": f"{group} {label}",

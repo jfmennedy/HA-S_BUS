@@ -74,6 +74,9 @@ class DataPoint:
     minimum: float | None
     maximum: float | None
     fbox_type: str | None = None
+    # From the DDC Suite library (.idx): readable title and value texts
+    title: str | None = None
+    options: list[list[Any]] | None = None
 
     @property
     def operating(self) -> bool:
@@ -124,6 +127,7 @@ def parse_map(text: str) -> dict[str, tuple[str, int]]:
 @dataclass(slots=True)
 class _FBoxVariable:
     fbox_type: str
+    var: str
     label: str
     access: str
     format: str
@@ -154,6 +158,7 @@ def _parse_fbox_variables(text: str) -> dict[int, _FBoxVariable]:
             spec = av.get(var)
             variables[int(ident)] = _FBoxVariable(
                 fbox_type=head["head"].split()[0].lstrip("_"),
+                var=var,
                 label=label,
                 access=spec["access"] if spec else "v",
                 format=spec["format"] if spec else "",
@@ -178,8 +183,14 @@ def _range(spec: str | None, factor: float) -> tuple[float | None, float | None]
         return None, None
 
 
-def parse_project(fup_text: str, map_text: str) -> list[DataPoint]:
-    """Combine Fupla file and linker map into data points with addresses."""
+def parse_project(
+    fup_text: str, map_text: str, library: Library | None = None
+) -> list[DataPoint]:
+    """Combine Fupla file and linker map into data points with addresses.
+
+    With a DDC Suite library (see ``parse_library``) the data points also
+    get the readable title and value texts of the FBox adjust window.
+    """
     addresses = parse_map(map_text)
     if "[FILEHEADER]" not in fup_text:
         msg = "No [FILEHEADER] section found, is this a Fupla (.fup) file?"
@@ -228,9 +239,103 @@ def parse_project(fup_text: str, map_text: str) -> list[DataPoint]:
             maximum=maximum,
             fbox_type=info.fbox_type if info else None,
         )
+        if info and library:
+            entry = library.get(info.fbox_type, {}).get(info.var)
+            _apply_library(points[symbol], entry)
     return sorted(points.values(), key=lambda p: (p.group, p.label, p.symbol))
+
+
+def _apply_library(
+    point: DataPoint, entry: tuple[str, list[tuple[int, str]]] | None
+) -> None:
+    """Add title and value texts from the library to a data point."""
+    if not entry:
+        return
+    point.title = entry[0] or None
+    if entry[1]:
+        point.options = [[value, text] for value, text in entry[1]]
 
 
 def decode(data: bytes) -> str:
     """Decode a PG5 file."""
     return data.decode(ENCODING, errors="replace")
+
+
+# ----------------------------------------------------------------------------
+# DDC Suite FBox library (.idx)
+# ----------------------------------------------------------------------------
+
+# {fbox type without leading "_": {variable: (title, [(value, text), ...])}}
+Library = dict[str, dict[str, tuple[str, list[tuple[int, str]]]]]
+
+_IDX_SECTION = re.compile(r"^\[_?(?P<type>\w+)\]\s*$", re.MULTILINE)
+_IDX_ENTRY = re.compile(r"^(?P<var>\w+) \d+=(?P<text>.*)$", re.MULTILINE)
+_IDX_VALUE = re.compile(r"^(?P<value>-?\d+)\)(?P<text>.*)$")
+_IDX_HEADING = re.compile(r"^c\w*=\[\s*-+\s*(?P<text>.*?)\s*-+\s*\]")
+
+
+def _clean_title(text: str) -> str:
+    """ "... Außentemperaturgrenzwert " -> "Außentemperaturgrenzwert"."""
+    return text.strip().lstrip(".").strip()
+
+
+def parse_library(text: str) -> Library:
+    """Read the adjust window texts of a DDC Suite library index (.idx).
+
+    Lines look like ``HMI 0=HMI Niederprior\\R)z.B. HMI\\1)Auto\\2)Aus``:
+    variable, title, an optional remark ("R)") and value texts ("1)Auto").
+    """
+    library: Library = {}
+    heads = list(_IDX_SECTION.finditer(text))
+    for index, head in enumerate(heads):
+        end = heads[index + 1].start() if index + 1 < len(heads) else len(text)
+        found: list[tuple[str, str, str, list[tuple[int, str]]]] = []
+        heading = ""
+        for line in text[head.end() : end].splitlines():
+            section = _IDX_HEADING.match(line)
+            if section:
+                heading = section["text"].strip()
+                continue
+            match = _IDX_ENTRY.match(line)
+            if not match:
+                continue
+            title, *parts = match["text"].rstrip("\r").split("\\")
+            found.append((match["var"], _clean_title(title), heading, _values(parts)))
+        if found:
+            library.setdefault(head["type"], {}).update(_disambiguate(found))
+    return library
+
+
+def _values(parts: list[str]) -> list[tuple[int, str]]:
+    """ "1)Auto", "2)Aus" -> [(1, "Auto"), (2, "Aus")]; remarks ("R)...") skipped."""
+    values = []
+    for part in parts:
+        value = _IDX_VALUE.match(part)
+        if value:
+            values.append((int(value["value"]), value["text"].strip()))
+    return values
+
+
+def _disambiguate(
+    found: list[tuple[str, str, str, list[tuple[int, str]]]],
+) -> dict[str, tuple[str, list[tuple[int, str]]]]:
+    """Titles that occur twice in one FBox ("Meldungszustand" for every
+    alarm) get the heading of their block: "Motorschutz Meldungszustand".
+    """
+    counts: dict[str, int] = {}
+    for item in found:
+        counts[item[1]] = counts.get(item[1], 0) + 1
+    return {
+        var: (f"{block} {title}" if counts[title] > 1 and block else title, values)
+        for var, title, block, values in found
+    }
+
+
+def merge_libraries(texts: list[str]) -> Library:
+    """Parse and merge several .idx files."""
+    library: Library = {}
+    for text in texts:
+        for fbox_type, entries in parse_library(text).items():
+            library.setdefault(fbox_type, {}).update(entries)
+    return library
+

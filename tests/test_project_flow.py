@@ -23,6 +23,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "pg5"
 # Upload ids are UUIDs in Home Assistant
 FUP_ID = "00000000-0000-0000-0000-00000000f0f0"
 MAP_ID = "00000000-0000-0000-0000-00000000a0a0"
+LIB_ID = "00000000-0000-0000-0000-00000000b1b1"
 
 
 @pytest.fixture
@@ -31,11 +32,13 @@ def uploads(tmp_path):
     files: dict[str, Path] = {
         "fup": FIXTURES / "Demo.fup",
         "map": FIXTURES / "Demo.map",
+        "library": FIXTURES / "Demo_idx.zip",
     }
+    ids = {FUP_ID: "fup", MAP_ID: "map", LIB_ID: "library"}
 
     @contextlib.contextmanager
     def fake_process(_hass, file_id):
-        yield files["fup" if file_id == FUP_ID else "map"]
+        yield files[ids[file_id]]
 
     with patch(
         "custom_components.sbus.config_flow.process_uploaded_file", fake_process
@@ -91,10 +94,13 @@ async def _menu(hass, entry, step):
     )
 
 
-async def _import(hass, entry):
+async def _import(hass, entry, *, library=False):
     result = await _menu(hass, entry, "import_project")
+    files = {"fup": FUP_ID, "map": MAP_ID}
+    if library:
+        files["library"] = LIB_ID
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"fup": FUP_ID, "map": MAP_ID}
+        result["flow_id"], files
     )
     assert result["step_id"] == "import_done", result.get("errors")
     placeholders = result["description_placeholders"]
@@ -131,7 +137,7 @@ async def test_import_and_select(hass, pcd_entry, uploads) -> None:  # noqa: ARG
     """Import, pick sensor/alarm/setpoint/enable, write the setpoint."""
     pcd, entry = pcd_entry
     placeholders = await _import(hass, entry)
-    assert placeholders["points"] == "13"
+    assert placeholders["points"] == "15"
     assert placeholders["groups"] == "H01, S01"
     # the manual register got the symbol of its address
     assert entry.options["registers"][0]["symbol"] == "S01.Speicher.Temp2.Fühler.Istwert"
@@ -234,10 +240,10 @@ def test_value_to_raw(value, data_type, factor, raw) -> None:
     assert value_to_raw(value, data_type, factor) == raw
 
 
-async def _select_parts(hass, entry, group, parts):
+async def _select_parts(hass, entry, group, parts, *, parameters=False):
     result = await _menu(hass, entry, "select_group")
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"group": group, "mode": "parts", "parameters": False}
+        result["flow_id"], {"group": group, "mode": "parts", "parameters": parameters}
     )
     assert result["step_id"] == "select_parts"
     options = {
@@ -260,7 +266,7 @@ async def test_select_plant_part(hass, pcd_entry, uploads) -> None:  # noqa: ARG
     options, preselected = await _select_parts(hass, entry, "S01", ["S01:zirkuwp"])
     assert options == {
         "S01:speichertemp2": "S01 Speicher Temp. 2 – 2",
-        "S01:zirkuwp": "S01 Zirk. UWP – 5 (1 ✎)",  # iBetrieb_DI is no operating value
+        "S01:zirkuwp": "S01 Zirk. UWP – 6 (1 ✎)",  # iBetrieb_DI, HMI: no operating values
     }
     assert preselected == []  # Speicher Temp. 2 is only partly configured
 
@@ -280,6 +286,7 @@ async def test_select_plant_part(hass, pcd_entry, uploads) -> None:  # noqa: ARG
         ("binary_sensor", "Steuerung.Sperre"),
         ("binary_sensor", "Störungen.Sperre"),
         ("number", "Schaltung"),
+        ("sensor", "Zustand"),
     ]
     brm = hass.states.get(_entity(hass, "binary_sensor", entry, 4382, "flag"))
     assert brm.name == "S01 Zirk. UWP BrmSm"
@@ -296,3 +303,74 @@ async def test_select_plant_part(hass, pcd_entry, uploads) -> None:  # noqa: ARG
     assert devices.async_get_device({(DOMAIN, f"{identity}#S01:zirkuwp")}) is None
     assert _entity(hass, "binary_sensor", entry, 4382, "flag") is None
     assert _entity(hass, "sensor", entry, 3187, "register")  # not part of it
+
+
+async def test_library_texts(hass, pcd_entry, uploads) -> None:  # noqa: ARG001
+    """With the DDC Suite library: readable names, select, text sensor, state text."""
+    pcd, entry = pcd_entry
+    pcd.registers.update({3249: 1, 3260: 2})
+    pcd.flags.update({4398: False, 4382: True})
+    await _import(hass, entry, library=True)
+    await _select_parts(hass, entry, "S01", ["S01:zirkuwp"], parameters=True)
+
+    hmi_id = _entity(hass, "select", entry, 3249, "register_select")
+    hmi = hass.states.get(hmi_id)
+    assert hmi.name == "S01 Zirk. UWP HMI Niederprior"
+    assert (hmi.state, hmi.attributes["options"]) == ("Auto", ["Auto", "Aus", "Ein"])
+    await hass.services.async_call(
+        "select", "select_option", {"entity_id": hmi_id, "option": "Ein"}, blocking=True
+    )
+    assert pcd.registers[3249] == 3
+    assert hass.states.get(hmi_id).state == "Ein"
+
+    state = hass.states.get(_entity(hass, "sensor", entry, 3260, "register"))
+    assert (state.name, state.state) == ("S01 Zirk. UWP Betriebszustand", "Störung")
+    assert "unit_of_measurement" not in state.attributes
+
+    lock = hass.states.get(_entity(hass, "binary_sensor", entry, 4398, "flag"))
+    assert (lock.name, lock.state, lock.attributes["state_text"]) == (
+        "S01 Zirk. UWP Motorstörungen",
+        "off",
+        "keine",
+    )
+    alarm = hass.states.get(_entity(hass, "binary_sensor", entry, 4382, "flag"))
+    assert alarm.name == "S01 Zirk. UWP Betriebsmeldung Meldungszustand"
+    assert alarm.attributes["state_text"] == "STÖRUNG"
+
+    # A value the library doesn't know is shown as number, not hidden
+    pcd.registers[3249] = 7
+    pcd.registers[3260] = 9
+    await hass.data[DOMAIN][entry.entry_id]["coordinator"].async_refresh()
+    await hass.async_block_till_done()
+    hmi = hass.states.get(hmi_id)
+    assert (hmi.state, hmi.attributes["options"]) == ("7", ["Auto", "Aus", "Ein", "7"])
+    assert hass.states.get(_entity(hass, "sensor", entry, 3260, "register")).state == "9"
+
+    # Re-import without library keeps the texts
+    await _import(hass, entry)
+    assert hass.states.get(hmi_id).attributes["options"] == ["Auto", "Aus", "Ein", "7"]
+
+
+async def test_invalid_library(hass, pcd_entry, uploads) -> None:  # noqa: ARG001
+    """A damaged ZIP is reported."""
+    _pcd, entry = pcd_entry
+    broken = FIXTURES / "Demo.map"  # not a ZIP, not an idx
+    uploads["library"] = broken
+    result = await _menu(hass, entry, "import_project")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"fup": FUP_ID, "map": MAP_ID, "library": LIB_ID}
+    )
+    assert result["errors"] == {"base": "invalid_project"}
+
+
+async def test_broken_zip(hass, pcd_entry, uploads, tmp_path) -> None:  # noqa: ARG001
+    """A ZIP that can't be opened is reported as invalid library."""
+    _pcd, entry = pcd_entry
+    broken = tmp_path / "broken.zip"
+    broken.write_bytes(b"PK\x03\x04 this is not a zip")
+    uploads["library"] = broken
+    result = await _menu(hass, entry, "import_project")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"fup": FUP_ID, "map": MAP_ID, "library": LIB_ID}
+    )
+    assert result["errors"] == {"base": "invalid_library"}

@@ -118,6 +118,7 @@ CONF_WRITABLE: Final = "writable"
 CONF_SYMBOL: Final = "symbol"
 CONF_MIN: Final = "min"
 CONF_MAX: Final = "max"
+CONF_OPTIONS: Final = "options"  # value texts [[value, text], ...]
 
 DATA_TYPE_UNSIGNED: Final = "unsigned"
 DATA_TYPE_SIGNED: Final = "signed"

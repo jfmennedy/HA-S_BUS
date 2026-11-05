@@ -12,6 +12,22 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Unterstützung für Timer und Counter Entitäten
 - Diagnostics Support
 
+## [0.7.0] - 2026-11-05
+
+### Hinzugefügt
+- **DDC-Suite-Bibliothek:** Beim PG5-Import kann optional ein ZIP mit den
+  `.idx`-Dateien der DDC Suite hochgeladen werden. Daraus kommen die
+  Bezeichnungen und Auswahltexte des PG5-Einstellfensters.
+- **Auswahlfelder:** Einstellbare Auswahlwerte (z. B. Pumpe „HMI
+  Niederprior“: Auto / Aus / Ein) werden Select-Entitäten.
+- Angezeigte Auswahlwerte werden Sensoren mit Text, Meldungen bekommen das
+  Attribut `state_text` (z. B. „keine“ / „STÖRUNG“). Werte ohne Text in der
+  Bibliothek erscheinen als Zahl.
+- Entitäten in Anlagenteilen heißen wie im Einstellfenster („Rückmeldung“,
+  „Motorschutz Meldungszustand“); mehrfach vorkommende Bezeichnungen werden
+  über die Blocküberschrift bzw. den DDC-Variablennamen unterschieden.
+- Ein erneuter Import ohne Bibliothek behält die bisherigen Texte.
+
 ## [0.6.0] - 2026-11-05
 
 ### Hinzugefügt
@@ -259,7 +275,8 @@ wurde versehentlich vor dem Merge angelegt und enthält den Stand von 0.4.2.
 - Type Hints für alle Funktionen
 - Logging und Error Handling
 
-[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.7.0
 [0.6.0]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.6.0
 [0.5.0]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.5.0
 [0.4.8]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.8

@@ -32,11 +32,13 @@ av4=a Uhr 0 %1H =1200:700 {0..2359} \wax=0
 uName=H01_Anlage
 [_DDC_COPUMP270 3136]
 Fam=DDC27_FAM_CONTROL
-S=Betr_F=40 Schalt_R=41 Sperr_F=42 
+S=Betr_F=40 Schalt_R=41 Sperr_F=42 HMI_R=43 Zust_R=44 
 av1=a Descript %T ="":"Zirk. UWP " \wax=0 
 av2=v Betr 0 %s 
 av3=a Schalt 0 %d =0 {0..2} \wax=0 
 av4=v Sperr 0 %s 
+av5=a HMI 0 %s =1 {1..3} 
+av6=v Zust 0 %s 
 uName=S01_ZIRK_UWP
 [_DDC_ALMOT1SP270 3134]
 Fam=DDC27_FAM_ALARM
@@ -61,3 +63,5 @@ HSYM12=42	S01.ZIRK.UWP.Steuerung.Sperre	F		1	-1	(1) Sperre des Motors			0	0
 HSYM13=50	S01.ZIRK.UWP.Störungen.BrmSm	F		1	-1	(1) Störmeldung Betriebsrückmeldung fehlt			0	0
 HSYM14=51	S01.ZIRK.UWP.Störungen.Sperre	F		1	-1	(1) Sperre durch Störung			0	0
 HSYM15=60	S01.ZIRK.UWP.iBetrieb_DI	F		1	-1				0	0
+HSYM16=43	S01.ZIRK.UWP.Steuerung.HMI	R		1	-1	(4) Vorwahl Pumpensteuerung für HMI			0	0
+HSYM17=44	S01.ZIRK.UWP.Steuerung.Zustand	R		1	-1	(2) Betriebszustand der Pumpe			0	0

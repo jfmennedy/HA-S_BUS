@@ -25,6 +25,7 @@ from .datapoints import decimals_for_factor
 from .datapoints import get_registers
 from .datapoints import unit_classes
 from .entity import SBusEntity
+from .entity import register_kind
 from .sbus_protocol import SBusProtocolError
 
 if TYPE_CHECKING:
@@ -52,7 +53,7 @@ async def async_setup_entry(
             data["coordinator"], data["device_info"], config, data["protocol"]
         )
         for config in get_registers(entry)
-        if config.get(CONF_WRITABLE)
+        if register_kind(config) == "register_number"
     )
 
 
