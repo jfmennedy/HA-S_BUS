@@ -9,7 +9,9 @@
           "edit_register": "Register bearbeiten",
           "remove_registers": "Register entfernen",
           "add_flag": "Flag hinzufügen (Binärsensor / Schalter)",
-          "remove_flags": "Flags entfernen"
+          "remove_flags": "Flags entfernen",
+          "import_project": "PG5-Projekt importieren",
+          "select_group": "Datenpunkte aus Projekt wählen"
         }
       },
       "settings": {
@@ -29,7 +31,8 @@
           "name": "Name",
           "data_type": "Datentyp",
           "factor": "Faktor",
-          "unit": "Einheit"
+          "unit": "Einheit",
+          "writable": "Beschreibbar (Zahlenfeld)"
         },
         "data_description": {
           "factor": "z. B. 0,1, wenn die PCD 32,5 °C als 325 ablegt",
@@ -50,7 +53,8 @@
           "name": "Name",
           "data_type": "Datentyp",
           "factor": "Faktor",
-          "unit": "Einheit"
+          "unit": "Einheit",
+          "writable": "Beschreibbar (Zahlenfeld)"
         },
         "data_description": {
           "factor": "z. B. 0,1, wenn die PCD 32,5 °C als 325 ablegt"
@@ -78,10 +82,40 @@
         "data": {
           "flags": "Zu entfernende Flags"
         }
+      },
+      "import_project": {
+        "title": "PG5-Projekt importieren",
+        "description": "Lade die Fupla-Datei (z. B. HKLS.fup) und die Linker-Map (Lst/<Projekt>.map) des PG5-Projekts hoch, das auf der PCD läuft. Vorher bauen, damit die Map aktuell ist. Gespeichert wird nur die ausgewertete Datenpunktliste. {error}",
+        "data": {
+          "fup": "Fupla-Datei (.fup)",
+          "map": "Linker-Map (.map)"
+        }
+      },
+      "import_done": {
+        "title": "Projekt importiert",
+        "description": "{points} Datenpunkte gefunden in den Anlagen {groups}.\n\nKonfigurierte Datenpunkte mit neuer Adresse: {moved}\nNicht mehr im Projekt: {missing}\n\nDatenpunkte anschließend über „Datenpunkte aus Projekt wählen“ auswählen."
+      },
+      "select_group": {
+        "title": "Anlage wählen",
+        "description": "Zahlen: Betriebswerte / alle Datenpunkte.",
+        "data": {
+          "group": "Anlage",
+          "parameters": "Auch Einstell- und Inbetriebnahme-Parameter anzeigen"
+        }
+      },
+      "select_points": {
+        "title": "Datenpunkte von {group}",
+        "description": "{count} Datenpunkte. Angehakte werden zu Entitäten; ✎ = einstellbar (Zahlenfeld bzw. Schalter). Haken entfernen löscht die Entität.",
+        "data": {
+          "points": "Datenpunkte"
+        }
       }
     },
     "error": {
-      "address_exists": "Diese Adresse ist bereits konfiguriert."
+      "address_exists": "Diese Adresse ist bereits konfiguriert.",
+      "invalid_project": "Die Dateien konnten nicht als PG5-Projekt gelesen werden.",
+      "upload_failed": "Die hochgeladenen Dateien konnten nicht gelesen werden.",
+      "empty_project": "Keine Register oder Flags mit Adresse gefunden. Stammt die Map aus demselben Build wie die Fupla-Datei?"
     }
   },
   "selector": {

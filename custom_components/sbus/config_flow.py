@@ -9,6 +9,7 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant import data_entry_flow
+from homeassistant.components.file_upload import process_uploaded_file
 from homeassistant.const import CONF_HOST
 from homeassistant.const import CONF_PORT
 from homeassistant.core import callback
@@ -25,7 +26,10 @@ from .const import CONF_DATA_TYPE
 from .const import CONF_FACTOR
 from .const import CONF_FLAGS
 from .const import CONF_NAME
+from .const import CONF_MAX
+from .const import CONF_MIN
 from .const import CONF_REGISTERS
+from .const import CONF_SYMBOL
 from .const import CONF_UNIT
 from .const import CONF_WRITABLE
 from .const import DATA_TYPE_SIGNED
@@ -33,6 +37,18 @@ from .const import DATA_TYPES
 from .const import MAX_REGISTER_ADDRESS
 from .const import UNITS
 from .datapoints import is_configured
+from .pg5 import KIND_FLAG
+from .pg5 import KIND_REGISTER
+from .pg5 import OPERATING_LEVELS
+from .pg5 import DataPoint
+from .pg5 import PG5ParseError
+from .pg5 import decode
+from .pg5 import parse_project
+from .project import apply_selection
+from .project import async_load_project
+from .project import async_save_project
+from .project import migrate_entity_addresses
+from .project import remap_to_project
 from .const import CONF_BAUDRATE
 from .const import CONF_CONNECTION_TYPE
 from .const import CONF_PROTOCOL_TYPE
@@ -531,6 +547,10 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
     def __init__(self) -> None:
         """Initialize the options flow."""
         self._edit_index: int | None = None
+        self._project: dict[str, Any] | None = None
+        self._import: dict[str, Any] | None = None
+        self._group: str | None = None
+        self._with_parameters = False
 
     # -- helpers -------------------------------------------------------
 
@@ -616,18 +636,30 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                     )
                 ),
+                vol.Required(
+                    CONF_WRITABLE, default=bool(defaults.get(CONF_WRITABLE, False))
+                ): selector.BooleanSelector(),
             }
         )
 
     @staticmethod
-    def _clean_register(user_input: dict[str, Any]) -> dict[str, Any]:
-        return {
+    def _clean_register(
+        user_input: dict[str, Any], current: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Build a register entry; keeps project data (symbol, range) on edit."""
+        register = {
             CONF_ADDRESS: int(user_input[CONF_ADDRESS]),
             CONF_NAME: str(user_input[CONF_NAME]).strip(),
             CONF_DATA_TYPE: user_input[CONF_DATA_TYPE],
             CONF_FACTOR: float(user_input[CONF_FACTOR]) or 1.0,
             CONF_UNIT: (user_input.get(CONF_UNIT) or "").strip() or None,
+            CONF_WRITABLE: bool(user_input.get(CONF_WRITABLE, False)),
         }
+        if current and current.get(CONF_ADDRESS) == register[CONF_ADDRESS]:
+            for key in (CONF_SYMBOL, CONF_MIN, CONF_MAX):
+                if current.get(key) is not None:
+                    register[key] = current[key]
+        return register
 
     # -- steps ---------------------------------------------------------
 
@@ -636,7 +668,11 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         user_input: dict[str, Any] | None = None,  # noqa: ARG002
     ) -> FlowResult:
         """Show the options menu."""
-        menu = ["settings", "add_register"]
+        self._project = await async_load_project(self.hass, self.config_entry.entry_id)
+        menu = ["settings", "import_project"]
+        if self._project:
+            menu.append("select_group")
+        menu.append("add_register")
         if self._registers:
             menu += ["edit_register", "remove_registers"]
         menu.append("add_flag")
@@ -728,7 +764,7 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
         current = registers[self._edit_index]
         errors: dict[str, str] = {}
         if user_input is not None:
-            register = self._clean_register(user_input)
+            register = self._clean_register(user_input, current)
             others = [r for i, r in enumerate(registers) if i != self._edit_index]
             if any(r[CONF_ADDRESS] == register[CONF_ADDRESS] for r in others):
                 errors[CONF_ADDRESS] = "address_exists"
@@ -846,3 +882,204 @@ class SBusOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
         )
+
+    # -- PG5 project ---------------------------------------------------
+
+    async def async_step_import_project(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> FlowResult:
+        """Upload Fupla file and linker map of the PG5 project."""
+        errors: dict[str, str] = {}
+        placeholders = {"error": ""}
+        if user_input is not None:
+            try:
+                fup, map_ = await self.hass.async_add_executor_job(
+                    _read_uploads, self.hass, user_input["fup"], user_input["map"]
+                )
+                points = await self.hass.async_add_executor_job(
+                    parse_project, fup, map_
+                )
+            except PG5ParseError as err:
+                errors["base"] = "invalid_project"
+                placeholders["error"] = str(err)
+            except (OSError, ValueError) as err:
+                _LOGGER.warning("Could not read uploaded PG5 files: %s", err)
+                errors["base"] = "upload_failed"
+            else:
+                if not points:
+                    errors["base"] = "empty_project"
+                else:
+                    return await self._finish_import(points)
+
+        return self.async_show_form(
+            step_id="import_project",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("fup"): selector.FileSelector(
+                        selector.FileSelectorConfig(accept=".fup")
+                    ),
+                    vol.Required("map"): selector.FileSelector(
+                        selector.FileSelectorConfig(accept=".map")
+                    ),
+                }
+            ),
+            errors=errors,
+            description_placeholders=placeholders,
+        )
+
+    async def _finish_import(self, points: list[DataPoint]) -> FlowResult:
+        """Store the project and align configured data points with it."""
+        data = [p.as_dict() for p in points]
+        await async_save_project(
+            self.hass, self.config_entry.entry_id, "PG5 project", data
+        )
+        registers, moved_r, missing_r = remap_to_project(
+            self._registers, data, KIND_REGISTER
+        )
+        flags, moved_f, missing_f = remap_to_project(self._flags, data, KIND_FLAG)
+        migrate_entity_addresses(
+            self.hass,
+            self.config_entry.entry_id,
+            {"register": moved_r, "register_number": moved_r,
+             "flag": moved_f, "flag_switch": moved_f},
+        )
+        groups = sorted({p.group for p in points})
+        self._import = {
+            "registers": registers,
+            "flags": flags,
+            "placeholders": {
+                "points": str(len(points)),
+                "groups": ", ".join(groups),
+                "moved": str(len(moved_r) + len(moved_f)),
+                "missing": ", ".join(missing_r + missing_f) or "–",
+            },
+        }
+        return await self.async_step_import_done()
+
+    async def async_step_import_done(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> FlowResult:
+        """Show the import result."""
+        assert self._import is not None
+        if user_input is not None:
+            if is_configured(self.config_entry) or self._import["registers"] or self._import["flags"]:
+                return self._save(
+                    registers=self._import["registers"], flags=self._import["flags"]
+                )
+            return self.async_create_entry(title="", data=dict(self.config_entry.options))
+        return self.async_show_form(
+            step_id="import_done",
+            data_schema=vol.Schema({}),
+            description_placeholders=self._import["placeholders"],
+        )
+
+    def _points(self) -> list[dict[str, Any]]:
+        return list((self._project or {}).get("points", []))
+
+    async def async_step_select_group(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> FlowResult:
+        """Choose the plant (first part of the symbol, e.g. "S01")."""
+        if user_input is not None:
+            self._group = user_input["group"]
+            self._with_parameters = bool(user_input.get("parameters", False))
+            return await self.async_step_select_points()
+
+        counts: dict[str, list[int]] = {}
+        for point in self._points():
+            operating = point["level"] in OPERATING_LEVELS
+            counts.setdefault(point["group"], [0, 0])[0 if operating else 1] += 1
+        options = [
+            selector.SelectOptionDict(
+                value=group, label=f"{group} ({values[0]} / {values[0] + values[1]})"
+            )
+            for group, values in sorted(counts.items())
+        ]
+        return self.async_show_form(
+            step_id="select_group",
+            data_schema=vol.Schema(
+                {
+                    vol.Required("group"): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=options, mode=selector.SelectSelectorMode.LIST
+                        )
+                    ),
+                    vol.Required("parameters", default=False): selector.BooleanSelector(),
+                }
+            ),
+        )
+
+    async def async_step_select_points(
+        self,
+        user_input: dict[str, Any] | None = None,
+    ) -> FlowResult:
+        """Tick the data points of the chosen plant."""
+        shown = [
+            p
+            for p in self._points()
+            if p["group"] == self._group
+            and (self._with_parameters or p["level"] in OPERATING_LEVELS)
+        ]
+        registers_shown = [p for p in shown if p["kind"] == KIND_REGISTER]
+        flags_shown = [p for p in shown if p["kind"] == KIND_FLAG]
+
+        if user_input is not None:
+            selected = set(user_input.get("points", []))
+            return self._save(
+                registers=apply_selection(self._registers, registers_shown, selected),
+                flags=apply_selection(self._flags, flags_shown, selected),
+            )
+
+        configured_registers = {r[CONF_ADDRESS]: r for r in self._registers}
+        configured_flags = {f[CONF_ADDRESS]: f for f in self._flags}
+        selected = [
+            p["symbol"]
+            for p in shown
+            if (configured_registers if p["kind"] == KIND_REGISTER else configured_flags).get(
+                p["address"]
+            )
+        ]
+        options = [
+            selector.SelectOptionDict(value=p["symbol"], label=_point_label(p))
+            for p in shown
+        ]
+        return self.async_show_form(
+            step_id="select_points",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional("points", default=selected): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=options,
+                            multiple=True,
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
+                }
+            ),
+            description_placeholders={"group": self._group or "", "count": str(len(shown))},
+        )
+
+
+def _read_uploads(hass: HomeAssistant, fup_id: str, map_id: str) -> tuple[str, str]:
+    """Read the uploaded files (runs in the executor); they are deleted afterwards."""
+    with process_uploaded_file(hass, fup_id) as fup_path:
+        fup = decode(fup_path.read_bytes())
+    with process_uploaded_file(hass, map_id) as map_path:
+        map_ = decode(map_path.read_bytes())
+    return fup, map_
+
+
+def _point_label(point: dict[str, Any]) -> str:
+    """Label for the selection list."""
+    description = point["description"]
+    if len(description) > 70:  # noqa: PLR2004
+        description = description[:69] + "…"
+    writable = " ✎" if point["writable"] else ""
+    label = f"{point['label']} – {point['variable']}"
+    if description:
+        label += f": {description}"
+    return f"{label} ({point['kind']} {point['address']}){writable}"
+

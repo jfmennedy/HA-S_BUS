@@ -117,7 +117,8 @@ Wenn eine Steuerung gefunden wird, erscheint eine Benachrichtigung in Home Assis
 Welche Register und Flags als Entitäten angelegt werden, legst du unter
 **Einstellungen → Geräte & Dienste → SAIA S-Bus → Konfigurieren** fest:
 
-- **Register hinzufügen** → Sensor. Wert = Rohwert × Faktor.
+- **Register hinzufügen** → Sensor, oder mit „Beschreibbar“ ein Zahlenfeld
+  zum Einstellen (z. B. Sollwerte). Wert = Rohwert × Faktor.
   - *Datentyp*: Ganzzahl mit/ohne Vorzeichen oder Gleitkomma (IEEE 754)
   - *Faktor*: z. B. `0.1`, wenn die PCD 32,5 °C als `325` ablegt
   - *Einheit*: °C, kWh, W, bar … setzen automatisch den passenden Sensortyp
@@ -129,6 +130,38 @@ Nah beieinander liegende Adressen werden mit einem Telegramm gelesen.
 Solange nichts konfiguriert ist, werden wie bisher R 0–9, F 0–31 und Schalter
 für F 0–7 angelegt; diese verschwinden, sobald der erste Datenpunkt
 konfiguriert wird.
+
+### Datenpunkte aus dem PG5-Projekt übernehmen
+
+Statt Adressen einzutippen, kannst du die Datenpunkte direkt aus dem
+PG5-Projekt wählen, das auf der PCD läuft:
+
+1. Projekt in PG5 bauen (damit die Adressen aktuell sind).
+2. **Konfigurieren → PG5-Projekt importieren** und zwei Dateien hochladen:
+   - die Fupla-Datei, z. B. `HKLS.fup`
+   - die Linker-Map aus dem Ordner `Lst`, z. B. `Lst/Mardelle5.map`
+3. **Datenpunkte aus Projekt wählen**: Anlage wählen (z. B. „S01“), dann die
+   gewünschten Datenpunkte ankreuzen. Die Liste zeigt die Klartext-Namen und
+   Beschreibungen der DDC-Suite-FBoxen, z. B.
+   „Speicher Temp. 2 – Istwert: Physikalischer Wert des Sensors (R 3187)“.
+
+Standardmäßig erscheinen die Betriebswerte (DDC-Suite-Stufen 1–3: Istwerte,
+Sollwerte, Zustände, Meldungen). Mit „Auch Einstell- und
+Inbetriebnahme-Parameter anzeigen“ kommen die Stufen 4 und 5 dazu.
+
+Name, Faktor (aus dem Anzeigeformat, z. B. eine Nachkommastelle → 0,1),
+Einheit und Wertebereich werden aus dem Projekt übernommen. Einstellbare
+Werte (✎) werden zu Zahlenfeldern bzw. Schaltern, Anzeigewerte zu Sensoren
+bzw. Binärsensoren.
+
+Ändert sich das Programm und PG5 vergibt neue Adressen, importierst du die
+Dateien einfach erneut: Die gewählten Datenpunkte werden über ihren
+Symbolnamen auf die neuen Adressen umgestellt, Entitäten und Verlauf bleiben
+erhalten. Gespeichert wird nur die ausgewertete Datenpunktliste, nicht die
+Dateien.
+
+Einheiten werden bisher nur für die DDC-Suite-Codes °C und % gesetzt; andere
+Einheiten lassen sich unter **Register bearbeiten** ergänzen.
 
 Den richtigen Datentyp und Faktor findest du am schnellsten mit der Aktion
 `sbus.read_register` (siehe unten): Sie zeigt jeden Wert roh, mit Vorzeichen,

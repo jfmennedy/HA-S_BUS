@@ -1,0 +1,31 @@
+SAIA PG5 LINKER V2.3.196                                               Page 1
+User: TEST
+File: Demo.pcd   Linked: 05/11/26 10:13 
+
+PUBLIC SYMBOLS:         9
+
+PUBLIC SYMBOLS
+___ETR___  F    4427          7#    7     
+__DBSTRC__ R    3286..3388    7#    4     7     
+__DYNAMICS__.__FIRST_FLAG__
+                1000          1#    
+S01.Speicher.Temp2.Fühler.Istwert
+           R    3187          4#    4     
+S01.Speicher.Temp2.Fühler.SmGwOben
+SAIA PG5 LINKER V2.3.196                                               Page 2
+User: TEST
+File: Demo.pcd   Linked: 05/11/26 10:13 
+
+           F    4358          4#    4     
+S01.Speicher.Temp2.Fühler.GwOben
+           R    3184          4#    4     
+S01.Speicher.Temp2.Fühler.FilterZeit
+           R    3181          4#    4     
+H01.Anlage.Freigabe
+           F    3317          4#    4     
+H01.Anlage.Sollwert
+           R    1790          4#    4     
+H01.Anlage.UhrEin
+           R    1791          4#    4     
+H01.Anlage.Prog
+           FB   5             4#    4     

@@ -12,6 +12,22 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 - Unterstützung für Timer und Counter Entitäten
 - Diagnostics Support
 
+## [0.5.0] - 2026-11-05
+
+### Hinzugefügt
+- **PG5-Projekt importieren:** Fupla-Datei (`.fup`) und Linker-Map (`.map`)
+  hochladen, dann Datenpunkte je Anlage aus einer Liste mit Klartext-Namen
+  und Beschreibungen der DDC-Suite-FBoxen wählen. Faktor, Einheit (°C, %)
+  und Wertebereich kommen aus dem Projekt. Standardmäßig werden
+  Betriebswerte (Stufen 1–3) angeboten, auf Wunsch auch Parameter.
+- Bei erneutem Import nach einem Programmumbau werden gewählte Datenpunkte
+  über ihren Symbolnamen auf neue Adressen umgestellt; Entitäten bleiben
+  erhalten.
+- **Zahlenfelder:** Beschreibbare Register werden als einstellbare Number-
+  Entitäten angelegt (aus dem Projekt oder über „Register hinzufügen“ mit
+  „Beschreibbar“).
+- Entitäten aus dem Projekt tragen das PG5-Symbol als Attribut.
+
 ## [0.4.8] - 2026-11-05
 
 ### Geändert
@@ -227,7 +243,8 @@ wurde versehentlich vor dem Merge angelegt und enthält den Stand von 0.4.2.
 - Type Hints für alle Funktionen
 - Logging und Error Handling
 
-[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/jfmennedy/HA-S_BUS/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.5.0
 [0.4.8]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.8
 [0.4.7]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.7
 [0.4.6]: https://github.com/jfmennedy/HA-S_BUS/releases/tag/v0.4.6
